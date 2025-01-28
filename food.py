@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 import models, schemas
 from db import get_db
-
+from auth import get_current_user
 router = APIRouter()
 
 # Create a food category
@@ -107,16 +107,21 @@ def delete_unit(unit_id: int, db: Session = Depends(get_db)):
     db.commit()
     return db_unit
 
-
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 
 @router.post("/foods/", response_model=schemas.Food)
-def create_food(food: schemas.FoodCreate, db: Session = Depends(get_db)):
+def create_food(food: schemas.FoodCreate, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
     db_food = db.query(models.Food).filter(models.Food.name == food.name).first()
     if db_food:
         raise HTTPException(status_code=400, detail="Food item already exists")
     
-    new_food = models.Food(**food.dict())
+    user = get_current_user(token, db)
+    
+    
+    
+    new_food = models.Food(**food.dict(),owner_id=user.id)
     db.add(new_food)
     db.commit()
     db.refresh(new_food)

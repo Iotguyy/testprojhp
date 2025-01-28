@@ -68,7 +68,9 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         if not user:
             raise HTTPException(status_code=400, detail="User not found")
         
-        return {"email": user.email, "username": user.username}
+        # return {"email": user.email, "username": user.username}
+        print(user)
+        return user
 
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
