@@ -117,9 +117,23 @@ class Food(Base):
 
 
 
-    contact = Column(Integer)  # Contact quantity (e.g., how many pieces or kg)
+    contact = Column(String)  # Contact quantity (e.g., how many pieces or kg)
     current_time = Column(DateTime, default=datetime.now)  # The time when the food was created
     expiration_time = Column(DateTime)
 
 
 
+class Reservation(Base):
+    __tablename__ = 'reservations'
+
+    id = Column(Integer, primary_key=True, index=True)
+    donor_id = Column(Integer, ForeignKey('users.id'))  # Donor (food owner)
+    receiver_id = Column(Integer, ForeignKey('users.id'))  # Receiver (person reserving food)
+    food_id = Column(Integer, ForeignKey('foods.id'))  # The food item being reserved
+    reservation_time = Column(DateTime, default=datetime.now)  # Time when the reservation was made
+    status = Column(String, default="pending")  # Status of the reservation (e.g., pending, confirmed)
+
+    # Relationships
+    donor = relationship("User", foreign_keys=[donor_id])  # Link to User (donor)
+    receiver = relationship("User", foreign_keys=[receiver_id])  # Link to User (receiver)
+    food = relationship("Food")  # Link to Food model

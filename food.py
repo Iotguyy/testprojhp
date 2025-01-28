@@ -118,19 +118,57 @@ def create_food(food: schemas.FoodCreate, db: Session = Depends(get_db), token: 
         raise HTTPException(status_code=400, detail="Food item already exists")
     
     user = get_current_user(token, db)
+
+
+    category = db.query(models.FoodCategory).filter(models.FoodCategory.name == food.category).first()
+    unit = db.query(models.Unit).filter(models.Unit.name == food.unit).first()
+
+    # If category or unit doesn't exist, return an error
+    if not category:
+        raise HTTPException(status_code=400, detail="Invalid category")
+    if not unit:
+        raise HTTPException(status_code=400, detail="Invalid unit")
+    
+
     
     
     
-    new_food = models.Food(**food.dict(),owner_id=user.id)
+    # new_food = models.Food(**food.dict(),owner_id=user.id)
+    
+    new_food = models.Food(
+        name=food.name,
+        description=food.description,
+        image_url=food.image_url,
+        quantity=food.quantity,
+        category_id=category.id,  # ✅ Assign category ID
+        unit_id=unit.id,  # ✅ Assign unit ID
+        location=food.location,
+        latitude=food.latitude,
+        longitude=food.longitude,
+        contact=food.contact,
+        current_time=food.current_time or datetime.utcnow(),
+        expiration_time=food.expiration_time,
+        owner_id=user.id
+    )
+    
+    
     db.add(new_food)
     db.commit()
     db.refresh(new_food)
     return new_food
 
 # Get all food items
+# @router.get("/foods/", response_model=List[schemas.Food])
+# def get_foods(db: Session = Depends(get_db)):
+#     return db.query(models.Food).all()
+
+
+
 @router.get("/foods/", response_model=List[schemas.Food])
 def get_foods(db: Session = Depends(get_db)):
-    return db.query(models.Food).all()
+    foods = db.query(models.Food).all()
+    return [schemas.Food.from_orm_with_relationships(food) for food in foods]  # ✅ Convert each food item
+
 
 # Get a specific food item by ID
 @router.get("/foods/{food_id}", response_model=schemas.Food)
