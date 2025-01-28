@@ -57,9 +57,10 @@
 
 
 
-from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey,DateTime
 from sqlalchemy.orm import relationship
 from db import Base
+from datetime import datetime
 
 class User(Base):
     __tablename__ = "users"
@@ -99,7 +100,7 @@ class Food(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)  # Food item name (e.g., apple, bread)
     description = Column(Text)  # Food item description
-    price = Column(Float)  # Price of the food item
+    # price = Column(Float)  # Price of the food item
     image_url = Column(String)  # Image URL for food item
     quantity = Column(String)  # Quantity specification (e.g., "1 kg", "10 pieces")
     unit_id = Column(Integer, ForeignKey('units.id'))  # Link to the predefined units
@@ -113,5 +114,12 @@ class Food(Base):
     owner = relationship("User", back_populates="foods")  # Relationship with User model
     category = relationship("FoodCategory", back_populates="foods")  # Relationship with FoodCategory model
     unit = relationship("Unit")  # Relationship with Unit model
+
+
+
+    contact = Column(Integer)  # Contact quantity (e.g., how many pieces or kg)
+    current_time = Column(DateTime, default=datetime.now)  # The time when the food was created
+    expiration_time = Column(DateTime)
+
 
 

@@ -209,7 +209,7 @@ def add_categories_and_units(db: Session = Depends(get_db)):
 
     return {"message": "Categories and units added successfully"}
 
-
+from datetime import datetime, timedelta
 
 @router.post("/create_foods")
 def create_foods(db: Session = Depends(get_db)):
@@ -221,18 +221,45 @@ def create_foods(db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Categories or Units not found")
 
     # Example food data to create
+    # food_data = [
+    #     {"name": "Apple", "description": "Fresh red apple", "price": 2.5, "quantity": "1 kg", "unit": "kg", "category": "Fruits", "location": "Store 1", "latitude": 34.0522, "longitude": -118.2437},
+    #     {"name": "Banana", "description": "Ripe yellow banana", "price": 1.2, "quantity": "5 pieces", "unit": "pieces", "category": "Fruits", "location": "Store 1", "latitude": 34.0522, "longitude": -118.2437},
+    #     {"name": "Carrot", "description": "Organic carrots", "price": 3.0, "quantity": "2 kg", "unit": "kg", "category": "Vegetables", "location": "Store 2", "latitude": 34.0522, "longitude": -118.2437},
+    #     {"name": "Tomato", "description": "Fresh red tomatoes", "price": 4.0, "quantity": "1.5 kg", "unit": "kg", "category": "Vegetables", "location": "Store 3", "latitude": 34.0522, "longitude": -118.2437},
+    #     {"name": "Bread", "description": "Freshly baked whole wheat bread", "price": 1.8, "quantity": "1 loaf", "unit": "loaf", "category": "Baked Goods", "location": "Store 4", "latitude": 34.0522, "longitude": -118.2437},
+    #     {"name": "Milk", "description": "Full-fat milk", "price": 1.5, "quantity": "1 liter", "unit": "liters", "category": "Dairy Products", "location": "Store 5", "latitude": 34.0522, "longitude": -118.2437},
+    #     {"name": "Yogurt", "description": "Greek yogurt", "price": 2.0, "quantity": "500 g", "unit": "g", "category": "Dairy Products", "location": "Store 5", "latitude": 34.0522, "longitude": -118.2437},
+    #     {"name": "Rice", "description": "Long-grain rice", "price": 3.5, "quantity": "2 kg", "unit": "kg", "category": "Grains and Pasta", "location": "Store 6", "latitude": 34.0522, "longitude": -118.2437},
+    #     {"name": "Pasta", "description": "Spaghetti pasta", "price": 2.8, "quantity": "1 pack", "unit": "pack", "category": "Grains and Pasta", "location": "Store 6", "latitude": 34.0522, "longitude": -118.2437},
+    #     {"name": "Juice", "description": "Orange juice", "price": 3.0, "quantity": "1 liter", "unit": "liters", "category": "Beverages", "location": "Store 7", "latitude": 34.0522, "longitude": -118.2437}
+    # ]
+
+    # food_data = [
+    # {"name": "Apple", "description": "Fresh red apple", "quantity": "1 kg", "location": "Store 1", "latitude": 34.0522, "longitude": -118.2437, "contact": "+1234567890", "current_time": datetime.now().isoformat(), "expiration_time": (datetime.now() + timedelta(days=7)).isoformat()},
+    # {"name": "Banana", "description": "Ripe yellow banana", "quantity": "5 pieces", "location": "Store 1", "latitude": 34.0522, "longitude": -118.2437, "contact": "+1234567890", "current_time": datetime.now().isoformat(), "expiration_time": (datetime.now() + timedelta(days=5)).isoformat()},
+    # {"name": "Carrot", "description": "Organic carrots", "quantity": "2 kg", "location": "Store 2", "latitude": 34.0522, "longitude": -118.2437, "contact": "+1234567890", "current_time": datetime.now().isoformat(), "expiration_time": (datetime.now() + timedelta(days=10)).isoformat()},
+    # {"name": "Tomato", "description": "Fresh red tomatoes", "quantity": "1.5 kg", "location": "Store 3", "latitude": 34.0522, "longitude": -118.2437, "contact": "+1234567890", "current_time": datetime.now().isoformat(), "expiration_time": (datetime.now() + timedelta(days=4)).isoformat()},
+    # {"name": "Bread", "description": "Freshly baked whole wheat bread", "quantity": "1 loaf", "location": "Store 4", "latitude": 34.0522, "longitude": -118.2437, "contact": "+1234567890", "current_time": datetime.now().isoformat(), "expiration_time": (datetime.now() + timedelta(days=3)).isoformat()},
+    # {"name": "Milk", "description": "Full-fat milk", "quantity": "1 liter", "location": "Store 5", "latitude": 34.0522, "longitude": -118.2437, "contact": "+1234567890", "current_time": datetime.now().isoformat(), "expiration_time": (datetime.now() + timedelta(days=6)).isoformat()},
+    # {"name": "Yogurt", "description": "Greek yogurt", "quantity": "500 g", "location": "Store 5", "latitude": 34.0522, "longitude": -118.2437, "contact": "+1234567890", "current_time": datetime.now().isoformat(), "expiration_time": (datetime.now() + timedelta(days=8)).isoformat()},
+    # {"name": "Rice", "description": "Long-grain rice", "quantity": "2 kg", "location": "Store 6", "latitude": 34.0522, "longitude": -118.2437, "contact": "+1234567890", "current_time": datetime.now().isoformat(), "expiration_time": (datetime.now() + timedelta(days=30)).isoformat()},
+    # {"name": "Pasta", "description": "Spaghetti pasta", "quantity": "1 pack", "location": "Store 6", "latitude": 34.0522, "longitude": -118.2437, "contact": "+1234567890", "current_time": datetime.now().isoformat(), "expiration_time": (datetime.now() + timedelta(days=20)).isoformat()},
+    # {"name": "Juice", "description": "Orange juice", "quantity": "1 liter", "location": "Store 7", "latitude": 34.0522, "longitude": -118.2437, "contact": "+1234567890", "current_time": datetime.now().isoformat(), "expiration_time": (datetime.now() + timedelta(days=5)).isoformat()}
+    # ]
+
     food_data = [
-        {"name": "Apple", "description": "Fresh red apple", "price": 2.5, "quantity": "1 kg", "unit": "kg", "category": "Fruits", "location": "Store 1", "latitude": 34.0522, "longitude": -118.2437},
-        {"name": "Banana", "description": "Ripe yellow banana", "price": 1.2, "quantity": "5 pieces", "unit": "pieces", "category": "Fruits", "location": "Store 1", "latitude": 34.0522, "longitude": -118.2437},
-        {"name": "Carrot", "description": "Organic carrots", "price": 3.0, "quantity": "2 kg", "unit": "kg", "category": "Vegetables", "location": "Store 2", "latitude": 34.0522, "longitude": -118.2437},
-        {"name": "Tomato", "description": "Fresh red tomatoes", "price": 4.0, "quantity": "1.5 kg", "unit": "kg", "category": "Vegetables", "location": "Store 3", "latitude": 34.0522, "longitude": -118.2437},
-        {"name": "Bread", "description": "Freshly baked whole wheat bread", "price": 1.8, "quantity": "1 loaf", "unit": "loaf", "category": "Baked Goods", "location": "Store 4", "latitude": 34.0522, "longitude": -118.2437},
-        {"name": "Milk", "description": "Full-fat milk", "price": 1.5, "quantity": "1 liter", "unit": "liters", "category": "Dairy Products", "location": "Store 5", "latitude": 34.0522, "longitude": -118.2437},
-        {"name": "Yogurt", "description": "Greek yogurt", "price": 2.0, "quantity": "500 g", "unit": "g", "category": "Dairy Products", "location": "Store 5", "latitude": 34.0522, "longitude": -118.2437},
-        {"name": "Rice", "description": "Long-grain rice", "price": 3.5, "quantity": "2 kg", "unit": "kg", "category": "Grains and Pasta", "location": "Store 6", "latitude": 34.0522, "longitude": -118.2437},
-        {"name": "Pasta", "description": "Spaghetti pasta", "price": 2.8, "quantity": "1 pack", "unit": "pack", "category": "Grains and Pasta", "location": "Store 6", "latitude": 34.0522, "longitude": -118.2437},
-        {"name": "Juice", "description": "Orange juice", "price": 3.0, "quantity": "1 liter", "unit": "liters", "category": "Beverages", "location": "Store 7", "latitude": 34.0522, "longitude": -118.2437}
+    {"name": "Apple", "description": "Fresh red apple", "quantity": "1 kg", "unit": "kg", "category": "Fruits", "location": "Store 1", "latitude": 34.0522, "longitude": -118.2437, "contact": "+1234567890", "current_time": datetime.now().isoformat(), "expiration_time": (datetime.now() + timedelta(days=7)).isoformat()},
+    {"name": "Banana", "description": "Ripe yellow banana", "quantity": "5 pieces", "unit": "pieces", "category": "Fruits", "location": "Store 1", "latitude": 34.0522, "longitude": -118.2437, "contact": "+1234567890", "current_time": datetime.now().isoformat(), "expiration_time": (datetime.now() + timedelta(days=5)).isoformat()},
+    {"name": "Carrot", "description": "Organic carrots", "quantity": "2 kg", "unit": "kg", "category": "Vegetables", "location": "Store 2", "latitude": 34.0522, "longitude": -118.2437, "contact": "+1234567890", "current_time": datetime.now().isoformat(), "expiration_time": (datetime.now() + timedelta(days=10)).isoformat()},
+    {"name": "Tomato", "description": "Fresh red tomatoes", "quantity": "1.5 kg", "unit": "kg", "category": "Vegetables", "location": "Store 3", "latitude": 34.0522, "longitude": -118.2437, "contact": "+1234567890", "current_time": datetime.now().isoformat(), "expiration_time": (datetime.now() + timedelta(days=4)).isoformat()},
+    {"name": "Bread", "description": "Freshly baked whole wheat bread", "quantity": "1 loaf", "unit": "loaf", "category": "Baked Goods", "location": "Store 4", "latitude": 34.0522, "longitude": -118.2437, "contact": "+1234567890", "current_time": datetime.now().isoformat(), "expiration_time": (datetime.now() + timedelta(days=3)).isoformat()},
+    {"name": "Milk", "description": "Full-fat milk", "quantity": "1 liter", "unit": "liters", "category": "Dairy Products", "location": "Store 5", "latitude": 34.0522, "longitude": -118.2437, "contact": "+1234567890", "current_time": datetime.now().isoformat(), "expiration_time": (datetime.now() + timedelta(days=6)).isoformat()},
+    {"name": "Yogurt", "description": "Greek yogurt", "quantity": "500 g", "unit": "g", "category": "Dairy Products", "location": "Store 5", "latitude": 34.0522, "longitude": -118.2437, "contact": "+1234567890", "current_time": datetime.now().isoformat(), "expiration_time": (datetime.now() + timedelta(days=8)).isoformat()},
+    {"name": "Rice", "description": "Long-grain rice", "quantity": "2 kg", "unit": "kg", "category": "Grains and Pasta", "location": "Store 6", "latitude": 34.0522, "longitude": -118.2437, "contact": "+1234567890", "current_time": datetime.now().isoformat(), "expiration_time": (datetime.now() + timedelta(days=30)).isoformat()},
+    {"name": "Pasta", "description": "Spaghetti pasta", "quantity": "1 pack", "unit": "pack", "category": "Grains and Pasta", "location": "Store 6", "latitude": 34.0522, "longitude": -118.2437, "contact": "+1234567890", "current_time": datetime.now().isoformat(), "expiration_time": (datetime.now() + timedelta(days=20)).isoformat()},
+    {"name": "Juice", "description": "Orange juice", "quantity": "1 liter", "unit": "liters", "category": "Beverages", "location": "Store 7", "latitude": 34.0522, "longitude": -118.2437, "contact": "+1234567890", "current_time": datetime.now().isoformat(), "expiration_time": (datetime.now() + timedelta(days=5)).isoformat()}
     ]
+    
 
     # Creating food items
     food_items = []
@@ -247,14 +274,18 @@ def create_foods(db: Session = Depends(get_db)):
         food_item = models.Food(
             name=item["name"],
             description=item["description"],
-            price=item["price"],
+            # price=item["price"],
             quantity=item["quantity"],
             unit_id=unit.id,
             category_id=category.id,
             owner_id=1,  # Assuming owner with ID 1 exists
             location=item["location"],
             latitude=item["latitude"],
-            longitude=item["longitude"]
+            longitude=item["longitude"],
+            contact=item["contact"],
+            current_time=datetime.fromisoformat(item["current_time"]),
+            expiration_time=datetime.fromisoformat(item["expiration_time"])
+
         )
         food_items.append(food_item)
 
