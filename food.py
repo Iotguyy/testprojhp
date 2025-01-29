@@ -6,7 +6,7 @@ from db import get_db
 from auth import get_current_user
 from datetime import datetime
 import uuid
-
+from img_verify import verify_description
 router = APIRouter()
 
 # Create a food category
@@ -165,6 +165,29 @@ UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
+def update_food_status(verification_result: dict) -> str:
+    """
+    Updates the food status based on the description verification result.
+
+    Args:
+        verification_result (dict): The result of the description verification (contains 'is_correct').
+
+    Returns:
+        str: The updated food status ('approved' or 'under review').
+    """
+    # if verification_result["is_correct"] == True:
+    #     return "approved"
+    # else:
+    #     return "under review"
+
+    is_correct = verification_result.get("is_correct", False)  # Default to False if not found
+    if is_correct:
+        return "approved"
+    else:
+        return "under review"
+    
+
+
 @router.post("/foods/")
 def create_food(
     name: str = Form(...),
@@ -197,6 +220,15 @@ def create_food(
         f.write(image.file.read())
 
 
+    description_verification = verify_description(file_path, image.filename.split('.')[-1], description)
+
+    print(description_verification)
+    # Check if description verification was successful or contains errors
+    # if "inaccurate" in description_verification.lower():
+    #     raise HTTPException(status_code=400, detail="Description does not match the image.")
+
+    llm_status = update_food_status(description_verification)
+    print(llm_status)
 
     category_obj = db.query(models.FoodCategory).filter(models.FoodCategory.name == category).first()
     unit_obj = db.query(models.Unit).filter(models.Unit.name == unit).first()
@@ -216,7 +248,8 @@ def create_food(
         longitude=longitude,
         contact=contact,
         expiration_seconds=expiration_seconds,
-        owner_id=user.id
+        owner_id=user.id,
+        status=llm_status
     )
 
     db.add(new_food)
