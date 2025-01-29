@@ -124,6 +124,8 @@ class Food(Base):
     expiration_seconds = Column(Integer)
     expiration_time = Column(DateTime)
 
+    status = Column(String)
+
     # expiration_seconds = Column(Integer)
     # # expiration_time = Column(Integer)
     # expiration_time = Column(DateTime, default=lambda: datetime.now() + timedelta(seconds=expiration_seconds))  # Adding 1 hour (3600 seconds) to current time

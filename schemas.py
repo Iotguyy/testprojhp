@@ -88,6 +88,7 @@ class FoodCreate(BaseModel):
 class Food(FoodBase):
     id: int
     owner_id: int
+    status:str
     # category: str
     # unit:str
 
@@ -112,6 +113,7 @@ class Food(FoodBase):
             current_time=food.current_time,
             expiration_time=food.expiration_time,
             owner_id=food.owner_id,
+            status=food.status  # Add this line
         )
     
 

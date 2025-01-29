@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Food Listings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <nav class="bg-white shadow-md">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-green-600">My Food Listings</h1>
+                <div class="space-x-4">
+                    <a href="/food/food-page" class="text-gray-600 hover:text-gray-800">Browse Foods</a>
+                    <a href="/food/add-food" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                        Add New Food
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-8">
+        <!-- Stats Overview -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white p-4 rounded-lg shadow">
+                <h3 class="text-gray-500 text-sm">Total Listings</h3>
+                <p class="text-2xl font-bold">{{ foods|length }}</p>
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow">
+                <h3 class="text-gray-500 text-sm">Active Listings</h3>
+                <p class="text-2xl font-bold text-green-600">
+                    {{ foods|selectattr("status", "equalto", "active")|list|length }}
+                </p>
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow">
+                <h3 class="text-gray-500 text-sm">Reserved</h3>
+                <p class="text-2xl font-bold text-blue-600">
+                    {{ foods|selectattr("status", "equalto", "reserved")|list|length }}
+                </p>
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow">
+                <h3 class="text-gray-500 text-sm">Expired</h3>
+                <p class="text-2xl font-bold text-red-600">
+                    {{ foods|selectattr("status", "equalto", "expired")|list|length }}
+                </p>
+            </div>
+        </div>
+
+        {% if foods %}
+        <!-- Food Listings -->
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Food Item
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Category
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Status
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Listed Date
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Expiration
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Actions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for food in foods %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    {% if food.image_url %}
+                                    <div class="flex-shrink-0 h-10 w-10">
+                                        <img class="h-10 w-10 rounded-full object-cover" 
+                                             src="{{ food.image_url }}" alt="{{ food.name }}">
+                                    </div>
+                                    {% endif %}
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900">
+                                            {{ food.name }}
+                                        </div>
+                                        <div class="text-sm text-gray-500">
+                                            {{ food.quantity }} {{ food.unit.name }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                    {{ food.category.name }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                    {% if food.status == 'active' %}
+                                        bg-green-100 text-green-800
+                                    {% elif food.status == 'reserved' %}
+                                        bg-blue-100 text-blue-800
+                                    {% elif food.status == 'expired' %}
+                                        bg-red-100 text-red-800
+                                    {% else %}
+                                        bg-gray-100 text-gray-800
+                                    {% endif %}">
+                                    {{ food.status }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ food.current_time.strftime('%Y-%m-%d %H:%M') }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <span class="{% if (food.expiration_time - current_time).days < 1 %}text-red-500{% endif %}">
+                                    {{ food.expiration_time.strftime('%Y-%m-%d %H:%M') }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div class="flex space-x-2">
+                                    <a href="/food/foods/{{ food.id }}/details" 
+                                       class="text-indigo-600 hover:text-indigo-900">View</a>
+                                    {% if food.status == 'active' %}
+                                    <button onclick="updateStatus({{ food.id }}, 'expired')"
+                                            class="text-red-600 hover:text-red-900">Mark Expired</button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="text-center py-10">
+            <p class="text-gray-500 mb-4">You haven't listed any food items yet</p>
+            <a href="/food/add-food" 
+               class="inline-block bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                Add Your First Food Item
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        async function updateStatus(foodId, newStatus) {
+            if (!confirm(`Are you sure you want to mark this item as ${newStatus}?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/food/foods/${foodId}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ status: newStatus }),
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    const data = await response.json();
+                    alert(data.detail || 'Failed to update status');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while updating the status');
+            }
+        }
+    </script>
+</body>
+</html>

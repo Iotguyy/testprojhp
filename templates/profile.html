@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>User Profile</title>
+    <style>
+        .profile-container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .profile-info {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .error {
+            color: red;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="profile-container">
+        <h2>User Profile</h2>
+        <div id="error-message" class="error" style="display: none;"></div>
+        <div id="profile-info" class="profile-info">
+            Loading profile...
+        </div>
+    </div>
+
+    <script>
+        async function loadProfile() {
+            try {
+                const response = await fetch('/auth/profile');
+                const data = await response.json();
+
+                if (response.ok) {
+                    const profileInfo = document.getElementById('profile-info');
+                    const user = data.user;
+                    profileInfo.innerHTML = `
+                        <p><strong>Username:</strong> ${user.username}</p>
+                        <p><strong>Email:</strong> ${user.email}</p>
+                        <p><strong>User ID:</strong> ${user.id}</p>
+                    `;
+                } else {
+                    const errorDiv = document.getElementById('error-message');
+                    errorDiv.textContent = data.error || 'Failed to load profile';
+                    errorDiv.style.display = 'block';
+                    
+                    // If not authenticated, redirect to login
+                    if (response.status === 401) {
+                        setTimeout(() => {
+                            window.location.href = '/auth/login-page';
+                        }, 2000);
+                    }
+                }
+            } catch (error) {
+                console.error('Profile loading error:', error);
+                const errorDiv = document.getElementById('error-message');
+                errorDiv.textContent = 'An error occurred while loading the profile';
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        // Load profile when page loads
+        window.addEventListener('load', loadProfile);
+    </script>
+</body>
+</html>

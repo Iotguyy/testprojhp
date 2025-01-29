@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="flex flex-col items-center justify-center h-screen bg-gray-100">
+
+    <div class="w-full max-w-md bg-white shadow-lg rounded-lg p-6">
+        <h2 class="text-2xl font-bold mb-4 text-center">User Authentication</h2>
+
+        <!-- Register Form -->
+        <div id="registerForm">
+            <h3 class="text-lg font-semibold mb-2">Register</h3>
+            <input id="registerEmail" type="email" placeholder="Email" class="w-full p-2 border rounded mb-2">
+            <input id="registerUsername" type="text" placeholder="Username" class="w-full p-2 border rounded mb-2">
+            <input id="registerPassword" type="password" placeholder="Password" class="w-full p-2 border rounded mb-2">
+            <button onclick="registerUser()" class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">Register</button>
+        </div>
+
+        <hr class="my-4">
+
+        <!-- Login Form -->
+        <div id="loginForm">
+            <h3 class="text-lg font-semibold mb-2">Login</h3>
+            <input id="loginEmail" type="email" placeholder="Email" class="w-full p-2 border rounded mb-2">
+            <input id="loginPassword" type="password" placeholder="Password" class="w-full p-2 border rounded mb-2">
+            <button onclick="loginUser()" class="w-full bg-green-500 text-white py-2 rounded hover:bg-green-600">Login</button>
+        </div>
+
+        <hr class="my-4">
+
+        <!-- User Info -->
+        <div id="userInfo" class="hidden">
+            <h3 class="text-lg font-semibold">Current User:</h3>
+            <p id="userDetails" class="text-gray-700"></p>
+            <button onclick="logout()" class="mt-2 w-full bg-red-500 text-white py-2 rounded hover:bg-red-600">Logout</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "http://127.0.0.1:8000/auth";  // Update if using a different URL
+
+        async function registerUser() {
+            const email = document.getElementById("registerEmail").value;
+            const username = document.getElementById("registerUsername").value;
+            const password = document.getElementById("registerPassword").value;
+
+            const response = await fetch(`${API_URL}/register`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, username, password }),
+            });
+
+            const data = await response.json();
+            alert(data.message || "Registration successful!");
+        }
+
+        async function loginUser() {
+            const email = document.getElementById("loginEmail").value;
+            const password = document.getElementById("loginPassword").value;
+
+            const formData = new URLSearchParams();
+            formData.append("username", email);
+            formData.append("password", password);
+
+            const response = await fetch(`${API_URL}/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: formData,
+            });
+
+            const data = await response.json();
+            if (data.access_token) {
+                localStorage.setItem("token", data.access_token);
+                alert("Login successful!");
+                getUser();
+            } else {
+                alert("Invalid credentials!");
+            }
+        }
+
+        async function getUser() {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+
+            const response = await fetch(`${API_URL}/me`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            const data = await response.json();
+            if (data.email) {
+                document.getElementById("userDetails").textContent = `Email: ${data.email}, Username: ${data.username}`;
+                document.getElementById("userInfo").classList.remove("hidden");
+                document.getElementById("registerForm").classList.add("hidden");
+                document.getElementById("loginForm").classList.add("hidden");
+            } else {
+                alert("Failed to fetch user data.");
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem("token");
+            location.reload();
+        }
+
+        // Check if user is already logged in
+        window.onload = () => {
+            if (localStorage.getItem("token")) getUser();
+        };
+    </script>
+
+</body>
+</html>

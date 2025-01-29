@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends,UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Request, Depends,UploadFile, File, Form
 from sqlalchemy.orm import Session
 from typing import List
 import models, schemas
@@ -6,7 +6,7 @@ from db import get_db
 from auth import get_current_user
 from datetime import datetime
 import uuid
-
+from img_verify import verify_description
 router = APIRouter()
 
 # Create a food category
@@ -165,8 +165,122 @@ UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
+def update_food_status(verification_result: dict) -> str:
+    """
+    Updates the food status based on the description verification result.
+
+    Args:
+        verification_result (dict): The result of the description verification (contains 'is_correct').
+
+    Returns:
+        str: The updated food status ('approved' or 'under review').
+    """
+    # if verification_result["is_correct"] == True:
+    #     return "approved"
+    # else:
+    #     return "under review"
+
+    is_correct = verification_result.get("is_correct", False)  # Default to False if not found
+    if is_correct:
+        return "active"
+    else:
+        return "rejected"
+
+from fastapi.templating import Jinja2Templates   
+templates = Jinja2Templates(directory="templates")
+
+
+@router.get("/add-food")
+async def add_food_form(request: Request, db: Session = Depends(get_db)):
+    # Get categories and units for dropdown menus
+    categories = db.query(models.FoodCategory).all()
+    units = db.query(models.Unit).all()
+    
+    return templates.TemplateResponse(
+        "add_food.html",
+        {
+            "request": request,
+            "categories": categories,
+            "units": units
+        }
+    )
+
+
+
+# @router.post("/foods/")
+# def create_food(
+#     name: str = Form(...),
+#     description: str = Form(...),
+#     quantity: str = Form(...),
+#     category: str = Form(...),
+#     unit: str = Form(...),
+#     location: str = Form(...),
+#     latitude: float = Form(...),
+#     longitude: float = Form(...),
+#     contact: str = Form(...),
+#     # expiration_time: datetime = Form(...),
+#     expiration_seconds: int = Form(...),
+#     image: UploadFile = File(...),
+#     db: Session = Depends(get_db),
+#     token: str = Depends(oauth2_scheme)
+# ):
+#     user = get_current_user(token, db)
+
+#     # Save image file
+#     # file_path = os.path.join(UPLOAD_DIR, image.filename)
+#     # with open(file_path, "wb") as f:
+#     #     f.write(image.file.read())
+
+#     unique_filename = str(uuid.uuid4()) + os.path.splitext(image.filename)[1]  # Adding the file extension
+#     file_path = os.path.join(UPLOAD_DIR, unique_filename)
+
+#     # Save the image file
+#     with open(file_path, "wb") as f:
+#         f.write(image.file.read())
+
+
+#     description_verification = verify_description(file_path, image.filename.split('.')[-1], description)
+
+#     print(description_verification)
+#     # Check if description verification was successful or contains errors
+#     # if "inaccurate" in description_verification.lower():
+#     #     raise HTTPException(status_code=400, detail="Description does not match the image.")
+
+#     llm_status = update_food_status(description_verification)
+#     print(llm_status)
+
+#     category_obj = db.query(models.FoodCategory).filter(models.FoodCategory.name == category).first()
+#     unit_obj = db.query(models.Unit).filter(models.Unit.name == unit).first()
+
+#     if not category_obj or not unit_obj:
+#         raise HTTPException(status_code=400, detail="Invalid category or unit")
+
+#     new_food = models.Food(
+#         name=name,
+#         description=description,
+#         image_url=f"/uploads/{unique_filename}",
+#         quantity=quantity,
+#         category_id=category_obj.id,
+#         unit_id=unit_obj.id,
+#         location=location,
+#         latitude=latitude,
+#         longitude=longitude,
+#         contact=contact,
+#         expiration_seconds=expiration_seconds,
+#         owner_id=user.id,
+#         status=llm_status
+#     )
+
+#     db.add(new_food)
+#     db.commit()
+#     db.refresh(new_food)
+#     return new_food
+
+from fastapi import status
+
 @router.post("/foods/")
-def create_food(
+async def create_food(
+    request: Request,
     name: str = Form(...),
     description: str = Form(...),
     quantity: str = Form(...),
@@ -176,27 +290,42 @@ def create_food(
     latitude: float = Form(...),
     longitude: float = Form(...),
     contact: str = Form(...),
-    # expiration_time: datetime = Form(...),
     expiration_seconds: int = Form(...),
     image: UploadFile = File(...),
-    db: Session = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
+    db: Session = Depends(get_db)
 ):
-    user = get_current_user(token, db)
+    # Get token from cookie
+    token = request.cookies.get("access_token")
+    if not token or not token.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+    
+    # Extract the token value
+    token = token.split(" ")[1]
+    
+    # Get current user from token
+    try:
+        user = await get_current_user(request, db)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials"
+        )
 
-    # Save image file
-    # file_path = os.path.join(UPLOAD_DIR, image.filename)
-    # with open(file_path, "wb") as f:
-    #     f.write(image.file.read())
-
-    unique_filename = str(uuid.uuid4()) + os.path.splitext(image.filename)[1]  # Adding the file extension
+    # Rest of your existing code remains the same
+    unique_filename = str(uuid.uuid4()) + os.path.splitext(image.filename)[1]
     file_path = os.path.join(UPLOAD_DIR, unique_filename)
 
-    # Save the image file
     with open(file_path, "wb") as f:
         f.write(image.file.read())
 
+    description_verification = verify_description(file_path, image.filename.split('.')[-1], description)
+    print(description_verification)
 
+    llm_status = update_food_status(description_verification)
+    print(llm_status)
 
     category_obj = db.query(models.FoodCategory).filter(models.FoodCategory.name == category).first()
     unit_obj = db.query(models.Unit).filter(models.Unit.name == unit).first()
@@ -216,7 +345,8 @@ def create_food(
         longitude=longitude,
         contact=contact,
         expiration_seconds=expiration_seconds,
-        owner_id=user.id
+        owner_id=user.id,
+        status=llm_status
     )
 
     db.add(new_food)
@@ -251,7 +381,141 @@ def get_foods(db: Session = Depends(get_db)):
 
     return [schemas.Food.from_orm_with_relationships(food) for food in foods]
 
+@router.get("/food-page")
+async def food_page(request: Request, db: Session = Depends(get_db)):
+    current_time = datetime.now()
+    
+    # Get all categories for filter
+    categories = db.query(models.FoodCategory).all()
+    
+    # Get all active foods
+    foods = (
+        db.query(models.Food)
+        .filter(models.Food.expiration_time > current_time)
+        .order_by(models.Food.current_time.desc())  # Latest first
+        .all()
+    )
+    
+    return templates.TemplateResponse(
+        "food_items.html", 
+        {
+            "request": request,
+            "foods": foods,
+            "categories": categories,
+            "current_time": current_time
+        }
+    )
 
+
+
+@router.get("/my-foods")
+async def my_foods_page(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    try:
+        # Get current user from token
+        user = await get_current_user(request, db)
+        
+        # Get user's food items
+        foods = (
+            db.query(models.Food)
+            .filter(models.Food.owner_id == user.id)
+            .order_by(models.Food.current_time.desc())
+            .all()
+        )
+        
+        return templates.TemplateResponse(
+            "my_foods.html",
+            {
+                "request": request,
+                "foods": foods,
+                "user": user,
+                "current_time": datetime.now()
+            }
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Please login to view your listings"
+        )
+    
+
+from enum import Enum
+
+class FoodStatus(str, Enum):
+    UNDER_REVIEW = "under_review"
+    ACTIVE = "active"
+    RESERVED = "reserved"
+    COMPLETED = "completed"
+    EXPIRED = "expired"
+    REJECTED = "rejected"
+    APPROVED = "approved"
+
+# @router.get("/foods/{food_id}/details")
+# async def food_detail_page(request: Request, food_id: int, db: Session = Depends(get_db)):
+#     food = db.query(models.Food).filter(models.Food.id == food_id).first()
+#     if not food:
+#         raise HTTPException(status_code=404, detail="Food item not found")
+    
+#     # Get owner details
+#     owner = db.query(models.User).filter(models.User.id == food.owner_id).first()
+    
+#     return templates.TemplateResponse(
+#         "food_detail.html",
+#         {
+#             "request": request,
+#             "food": food,
+#             "owner": owner,
+#             "FoodStatus": FoodStatus
+#         }
+#     )
+
+
+
+@router.get("/foods/{food_id}/details")
+async def food_detail_page(
+    request: Request, 
+    food_id: int, 
+    db: Session = Depends(get_db)
+):
+    try:
+        # Get current user
+        current_user = await get_current_user(request, db)
+        
+        # Get food details
+        food = db.query(models.Food).filter(models.Food.id == food_id).first()
+        if not food:
+            raise HTTPException(status_code=404, detail="Food item not found")
+        
+        owner = db.query(models.User).filter(models.User.id == food.owner_id).first()
+        
+        return templates.TemplateResponse(
+            "food_detail.html",
+            {
+                "request": request,
+                "food": food,
+                "current_user": current_user,  # Pass current user to template
+                "FoodStatus": FoodStatus,
+                "owner": owner,
+            }
+        )
+    except Exception as e:
+        # Handle case when user is not logged in
+        food = db.query(models.Food).filter(models.Food.id == food_id).first()
+        if not food:
+            raise HTTPException(status_code=404, detail="Food item not found")
+            
+        return templates.TemplateResponse(
+            "food_detail.html",
+            {
+                "request": request,
+                "food": food,
+                "current_user": None,  # Pass None when user is not logged in
+                "FoodStatus": FoodStatus
+            }
+        )
+    
 
 # Get a specific food item by ID
 @router.get("/foods/{food_id}", response_model=schemas.Food)
@@ -292,6 +556,83 @@ def delete_food(food_id: int, db: Session = Depends(get_db)):
     db.delete(db_food)
     db.commit()
     return db_food
+
+
+import asyncio
+
+
+def update_expired_foods(db: Session):
+    """
+    Update status of expired food items to 'expired'
+    Returns number of items updated
+    """
+    current_time = datetime.now()
+    
+    # Get all active or reserved foods that have expired
+    expired_foods = (
+        db.query(models.Food)
+        .filter(
+            models.Food.expiration_time < current_time,
+            models.Food.status.in_([
+                FoodStatus.ACTIVE,
+                FoodStatus.RESERVED,
+                FoodStatus.UNDER_REVIEW,
+                FoodStatus.APPROVED
+            ])
+        )
+        .all()
+    )
+    
+    # Update their status to expired
+    for food in expired_foods:
+        food.status = FoodStatus.EXPIRED
+    
+    db.commit()
+    return len(expired_foods)
+
+# Function to schedule periodic updates
+async def schedule_expired_foods_update():
+    while True:
+        try:
+            db = next(get_db())
+            updated_count = update_expired_foods(db)
+            print(f"Updated {updated_count} expired food items")
+        except Exception as e:
+            print(f"Error updating expired foods: {e}")
+        finally:
+            await asyncio.sleep(300)  # Run every 5 minutes
+
+# Add this to your startup events in main.py
+@router.on_event("startup")
+async def start_scheduler():
+    asyncio.create_task(schedule_expired_foods_update())
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
