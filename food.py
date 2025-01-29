@@ -5,7 +5,7 @@ import models, schemas
 from db import get_db
 from auth import get_current_user
 from datetime import datetime
-
+import uuid
 
 router = APIRouter()
 
@@ -176,7 +176,8 @@ def create_food(
     latitude: float = Form(...),
     longitude: float = Form(...),
     contact: str = Form(...),
-    expiration_time: datetime = Form(...),
+    # expiration_time: datetime = Form(...),
+    expiration_seconds: int = Form(...),
     image: UploadFile = File(...),
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme)
@@ -184,9 +185,18 @@ def create_food(
     user = get_current_user(token, db)
 
     # Save image file
-    file_path = os.path.join(UPLOAD_DIR, image.filename)
+    # file_path = os.path.join(UPLOAD_DIR, image.filename)
+    # with open(file_path, "wb") as f:
+    #     f.write(image.file.read())
+
+    unique_filename = str(uuid.uuid4()) + os.path.splitext(image.filename)[1]  # Adding the file extension
+    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+
+    # Save the image file
     with open(file_path, "wb") as f:
         f.write(image.file.read())
+
+
 
     category_obj = db.query(models.FoodCategory).filter(models.FoodCategory.name == category).first()
     unit_obj = db.query(models.Unit).filter(models.Unit.name == unit).first()
@@ -197,7 +207,7 @@ def create_food(
     new_food = models.Food(
         name=name,
         description=description,
-        image_url=f"/uploads/{image.filename}",
+        image_url=f"/uploads/{unique_filename}",
         quantity=quantity,
         category_id=category_obj.id,
         unit_id=unit_obj.id,
@@ -205,7 +215,7 @@ def create_food(
         latitude=latitude,
         longitude=longitude,
         contact=contact,
-        expiration_time=expiration_time,
+        expiration_seconds=expiration_seconds,
         owner_id=user.id
     )
 

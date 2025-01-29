@@ -88,8 +88,8 @@ class FoodCreate(BaseModel):
 class Food(FoodBase):
     id: int
     owner_id: int
-    category: str
-    unit:str
+    # category: str
+    # unit:str
 
 
     @classmethod
