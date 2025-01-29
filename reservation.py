@@ -51,3 +51,23 @@ def get_all_reservations(db: Session = Depends(get_db), token: str = Depends(oau
         raise HTTPException(status_code=404, detail="No reservations found")
 
     return {"reservations": reservations}
+
+
+@router.put("/reservations/{reservation_id}/confirm")
+def confirm_reservation(reservation_id: int, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+    user = get_current_user(token, db)
+    
+    # Fetch the reservation
+    reservation = db.query(Reservation).filter(Reservation.id == reservation_id).first()
+    
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+
+    if reservation.donor_id != user.id:
+        raise HTTPException(status_code=403, detail="Only the donor can confirm a reservation")
+    
+    reservation.status = "confirmed"
+    db.commit()
+    db.refresh(reservation)
+    
+    return {"message": "Reservation confirmed", "status": reservation.status}

@@ -58,10 +58,10 @@
 
 
 from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey,DateTime
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 from db import Base
 from datetime import datetime
-
+from datetime import datetime, timedelta
 class User(Base):
     __tablename__ = "users"
 
@@ -119,9 +119,22 @@ class Food(Base):
 
     contact = Column(String)  # Contact quantity (e.g., how many pieces or kg)
     current_time = Column(DateTime, default=datetime.now)  # The time when the food was created
+    
+
+    expiration_seconds = Column(Integer)
     expiration_time = Column(DateTime)
 
+    # expiration_seconds = Column(Integer)
+    # # expiration_time = Column(Integer)
+    # expiration_time = Column(DateTime, default=lambda: datetime.now() + timedelta(seconds=expiration_seconds))  # Adding 1 hour (3600 seconds) to current time
 
+
+    @validates("expiration_seconds")
+    def set_expiration_time(self, key, value):
+        """Automatically sets expiration_time based on expiration_seconds"""
+        self.expiration_time = datetime.now() + timedelta(seconds=value)
+        return value  # Return value to store in `expiration_seconds`
+    
 
 class Reservation(Base):
     __tablename__ = 'reservations'

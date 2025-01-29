@@ -1,9 +1,12 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends,UploadFile, File, Form
 from sqlalchemy.orm import Session
 from typing import List
 import models, schemas
 from db import get_db
 from auth import get_current_user
+from datetime import datetime
+
+
 router = APIRouter()
 
 # Create a food category
@@ -111,51 +114,106 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 
-@router.post("/foods/", response_model=schemas.Food)
-def create_food(food: schemas.FoodCreate, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
-    db_food = db.query(models.Food).filter(models.Food.name == food.name).first()
-    if db_food:
-        raise HTTPException(status_code=400, detail="Food item already exists")
+# @router.post("/foods/", response_model=schemas.Food)
+# def create_food(food: schemas.FoodCreate, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+#     db_food = db.query(models.Food).filter(models.Food.name == food.name).first()
+#     if db_food:
+#         raise HTTPException(status_code=400, detail="Food item already exists")
     
+#     user = get_current_user(token, db)
+
+
+#     category = db.query(models.FoodCategory).filter(models.FoodCategory.name == food.category).first()
+#     unit = db.query(models.Unit).filter(models.Unit.name == food.unit).first()
+
+#     # If category or unit doesn't exist, return an error
+#     if not category:
+#         raise HTTPException(status_code=400, detail="Invalid category")
+#     if not unit:
+#         raise HTTPException(status_code=400, detail="Invalid unit")
+    
+
+    
+    
+    
+#     # new_food = models.Food(**food.dict(),owner_id=user.id)
+    
+#     new_food = models.Food(
+#         name=food.name,
+#         description=food.description,
+#         image_url=food.image_url,
+#         quantity=food.quantity,
+#         category_id=category.id,  # ✅ Assign category ID
+#         unit_id=unit.id,  # ✅ Assign unit ID
+#         location=food.location,
+#         latitude=food.latitude,
+#         longitude=food.longitude,
+#         contact=food.contact,
+#         current_time=food.current_time or datetime.utcnow(),
+#         expiration_time=food.expiration_time,
+#         owner_id=user.id
+#     )
+    
+    
+#     db.add(new_food)
+#     db.commit()
+#     db.refresh(new_food)
+#     return new_food
+
+import os
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+@router.post("/foods/")
+def create_food(
+    name: str = Form(...),
+    description: str = Form(...),
+    quantity: str = Form(...),
+    category: str = Form(...),
+    unit: str = Form(...),
+    location: str = Form(...),
+    latitude: float = Form(...),
+    longitude: float = Form(...),
+    contact: str = Form(...),
+    expiration_time: datetime = Form(...),
+    image: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
+):
     user = get_current_user(token, db)
 
+    # Save image file
+    file_path = os.path.join(UPLOAD_DIR, image.filename)
+    with open(file_path, "wb") as f:
+        f.write(image.file.read())
 
-    category = db.query(models.FoodCategory).filter(models.FoodCategory.name == food.category).first()
-    unit = db.query(models.Unit).filter(models.Unit.name == food.unit).first()
+    category_obj = db.query(models.FoodCategory).filter(models.FoodCategory.name == category).first()
+    unit_obj = db.query(models.Unit).filter(models.Unit.name == unit).first()
 
-    # If category or unit doesn't exist, return an error
-    if not category:
-        raise HTTPException(status_code=400, detail="Invalid category")
-    if not unit:
-        raise HTTPException(status_code=400, detail="Invalid unit")
-    
+    if not category_obj or not unit_obj:
+        raise HTTPException(status_code=400, detail="Invalid category or unit")
 
-    
-    
-    
-    # new_food = models.Food(**food.dict(),owner_id=user.id)
-    
     new_food = models.Food(
-        name=food.name,
-        description=food.description,
-        image_url=food.image_url,
-        quantity=food.quantity,
-        category_id=category.id,  # ✅ Assign category ID
-        unit_id=unit.id,  # ✅ Assign unit ID
-        location=food.location,
-        latitude=food.latitude,
-        longitude=food.longitude,
-        contact=food.contact,
-        current_time=food.current_time or datetime.utcnow(),
-        expiration_time=food.expiration_time,
+        name=name,
+        description=description,
+        image_url=f"/uploads/{image.filename}",
+        quantity=quantity,
+        category_id=category_obj.id,
+        unit_id=unit_obj.id,
+        location=location,
+        latitude=latitude,
+        longitude=longitude,
+        contact=contact,
+        expiration_time=expiration_time,
         owner_id=user.id
     )
-    
-    
+
     db.add(new_food)
     db.commit()
     db.refresh(new_food)
     return new_food
+
 
 # Get all food items
 # @router.get("/foods/", response_model=List[schemas.Food])
@@ -164,10 +222,25 @@ def create_food(food: schemas.FoodCreate, db: Session = Depends(get_db), token: 
 
 
 
+# @router.get("/foods/", response_model=List[schemas.Food])
+# def get_foods(db: Session = Depends(get_db)):
+#     foods = db.query(models.Food).all()
+#     return [schemas.Food.from_orm_with_relationships(food) for food in foods]  # ✅ Convert each food item
+
+
+
 @router.get("/foods/", response_model=List[schemas.Food])
 def get_foods(db: Session = Depends(get_db)):
-    foods = db.query(models.Food).all()
-    return [schemas.Food.from_orm_with_relationships(food) for food in foods]  # ✅ Convert each food item
+    current_time = datetime.now()
+
+    foods = (
+        db.query(models.Food)
+        .filter(models.Food.expiration_time > current_time)
+        .all()
+    )
+
+    return [schemas.Food.from_orm_with_relationships(food) for food in foods]
+
 
 
 # Get a specific food item by ID
