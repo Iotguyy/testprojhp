@@ -324,6 +324,13 @@ async def create_food(
     description_verification = verify_description(file_path, image.filename.split('.')[-1], description)
     print(description_verification)
 
+    description_verification = verify_description(file_path, image.filename.split('.')[-1], description)
+
+    print(description_verification)
+    # Check if description verification was successful or contains errors
+    # if "inaccurate" in description_verification.lower():
+    #     raise HTTPException(status_code=400, detail="Description does not match the image.")
+
     llm_status = update_food_status(description_verification)
     print(llm_status)
 
