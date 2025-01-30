@@ -129,7 +129,7 @@
                 if (response.ok) {
                     // Success - redirect to food list or show success message
                     alert('Food item added successfully!');
-                    window.location.href = '/food/fooditem'; // Redirect to food list
+                    window.location.href = data.redirect_url; // Redirect to food list
                 } else {
                     // Show error message
                     const errorDiv = document.getElementById('error-message');

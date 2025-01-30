@@ -306,6 +306,11 @@ async def login(
             }
         )
 
+        response = RedirectResponse(
+            url="/food/food-page",  # Redirect to home page
+            status_code=303  # Using 303 for POST-to-GET redirect
+        )
+
         # Set secure cookie
         response.set_cookie(
             key="access_token",
@@ -397,6 +402,13 @@ async def logout():
             "message": "Logged out successfully"
         }
     )
+
+    response = RedirectResponse(
+        url="/",
+        status_code=303
+    )
+
+    
     # Clear the access token cookie
     response.delete_cookie(
         key="access_token",

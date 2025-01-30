@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html>
 <head>
     <title>User Profile</title>
@@ -67,4 +67,117 @@
         window.addEventListener('load', loadProfile);
     </script>
 </body>
-</html>
+</html> -->
+
+
+
+{% extends "nav_base.html" %}
+
+{% block title %}My Profile - Food Sharing{% endblock %}
+
+{% block content %}
+    <!-- Profile Header -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div class="flex justify-between items-center">
+            <!-- Left side: User info -->
+            <div class="flex items-center space-x-4">
+                <div class="w-20 h-20 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                    {{ user.username[0].upper() }}
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">{{ user.username }}</h2>
+                    <p class="text-gray-600">{{ user.email }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <div class="bg-white rounded-lg shadow-md p-6 transform hover:scale-105 transition-transform duration-200">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Total Shared</h3>
+            <p class="text-3xl font-bold text-green-600">{{ stats.total_foods }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-md p-6 transform hover:scale-105 transition-transform duration-200">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Active</h3>
+            <p class="text-3xl font-bold text-blue-600">{{ stats.active_foods }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-md p-6 transform hover:scale-105 transition-transform duration-200">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Expired</h3>
+            <p class="text-3xl font-bold text-red-600">{{ stats.expired_foods }}</p>
+        </div>
+    </div>
+
+    <!-- Recent Foods -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold text-gray-800">Recent Shared Foods</h3>
+            <a href="/food/my-foods" class="text-green-600 hover:text-green-700">View All →</a>
+        </div>
+        {% if recent_foods %}
+            <div class="space-y-4">
+                {% for food in recent_foods %}
+                    <div class="flex items-center justify-between border-b pb-4 hover:bg-gray-50 p-2 rounded-lg transition-colors">
+                        <div class="flex items-center space-x-4">
+                            {% if food.image_url %}
+                                <img src="{{ food.image_url }}" alt="{{ food.name }}" class="w-16 h-16 object-cover rounded-lg">
+                            {% else %}
+                                <div class="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                                    <span class="text-2xl">🍽️</span>
+                                </div>
+                            {% endif %}
+                            <div>
+                                <h4 class="font-semibold text-gray-800">{{ food.name }}</h4>
+                                <p class="text-sm text-gray-600">{{ food.location }}</p>
+                                <div class="flex items-center space-x-2 mt-1">
+                                    <span class="text-xs px-2 py-1 rounded-full 
+                                        {% if food.expiration_time and food.expiration_time > now %}
+                                            bg-green-100 text-green-800
+                                        {% else %}
+                                            bg-red-100 text-red-800
+                                        {% endif %}">
+                                        {% if food.expiration_time %}
+                                            {% if food.expiration_time > now %}
+                                                {{ food.status }}
+                                            {% else %}
+                                                Expired
+                                            {% endif %}
+                                        {% else %}
+                                            Status Unknown
+                                        {% endif %}
+                                    </span>
+                                    <span class="text-xs text-gray-500">{{ food.quantity }} {{ food.unit.name if food.unit else '' }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <a href="/food/foods/{{ food.id }}/details" 
+                           class="text-blue-600 hover:text-blue-800 flex items-center">
+                            View Details
+                            <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </a>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-8">
+                <p class="text-gray-600 mb-4">You haven't shared any food items yet.</p>
+                <a href="/food/add-food" 
+                   class="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 inline-flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Share Your First Food Item
+                </a>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Add current datetime to template for expiration comparison
+    document.currentTime = new Date();
+</script>
+{% endblock %}

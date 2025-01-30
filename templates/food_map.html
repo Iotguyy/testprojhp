@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Map - Food Sharing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <style>
+        #map { 
+            height: calc(100vh - 4rem); 
+            width: 100%; 
+            z-index: 1; 
+        }
+        .custom-popup .leaflet-popup-content-wrapper {
+            background: #2d3748;
+            color: #fff;
+            border-radius: 1rem;
+            padding: 0.5rem;
+        }
+        .custom-popup .leaflet-popup-tip { 
+            background: #2d3748; 
+        }
+        .marker-cluster { 
+            background-color: rgba(34, 197, 94, 0.6); 
+        }
+        .marker-cluster div { 
+            background-color: rgba(34, 197, 94, 0.8); 
+        }
+        .food-marker { 
+            transition: all 0.3s ease; 
+        }
+        .food-marker:hover { 
+            transform: scale(1.2); 
+        }
+        .leaflet-tooltip {
+            background: #2d3748;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            font-size: 0.875rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .leaflet-tooltip-top:before {
+            border-top-color: #2d3748;
+        }
+        .marker-pin {
+            width: 40px;
+            height: 40px;
+            border-radius: 50% 50% 50% 0;
+            background: #22c55e;
+            position: absolute;
+            transform: rotate(-45deg);
+            left: 50%;
+            top: 50%;
+            margin: -20px 0 0 -20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .marker-pin::after {
+            content: '';
+            width: 24px;
+            height: 24px;
+            margin: 8px 0 0 8px;
+            background: white;
+            position: absolute;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <nav class="bg-white shadow-md h-16 fixed w-full top-0 z-50">
+        <div class="container mx-auto px-4 h-full">
+            <div class="flex justify-between items-center h-full">
+                <div class="flex items-center space-x-4">
+                    <h1 class="text-2xl font-bold text-green-600">Food Map</h1>
+                    <div class="flex space-x-2">
+                        <button onclick="filterMarkers('all')" 
+                                class="px-3 py-1 rounded-full text-sm transition-colors filter-btn bg-green-500 text-white"
+                                data-filter="all">
+                            All Foods
+                        </button>
+                        <button onclick="filterMarkers('expiring-soon')" 
+                                class="px-3 py-1 rounded-full text-sm transition-colors filter-btn bg-gray-100 text-gray-600"
+                                data-filter="expiring-soon">
+                            Expiring Soon
+                        </button>
+                    </div>
+                </div>
+                <div class="flex space-x-4">
+                    <button onclick="getUserLocation()" 
+                            class="flex items-center bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                        </svg>
+                        Find Near Me
+                    </button>
+                    <a href="/food/food-page" 
+                       class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                        List View
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="pt-16">
+        <div id="map"></div>
+    </div>
+
+    <script>
+        let map, markers, currentLocationMarker;
+        const foods = {{ foods|tojson }};
+        
+        function initMap() {
+            map = L.map('map').setView([0, 0], 2);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            markers = L.markerClusterGroup({
+                maxClusterRadius: 50,
+                spiderfyOnMaxZoom: true,
+                showCoverageOnHover: true,
+                zoomToBoundsOnClick: true
+            });
+
+            foods.forEach(food => {
+                if (food.latitude && food.longitude) {
+                    const marker = createMarker(food);
+                    markers.addLayer(marker);
+                }
+            });
+            
+            map.addLayer(markers);
+            getUserLocation();
+        }
+
+        function createMarker(food) {
+            const markerIcon = L.divIcon({
+                className: 'food-marker',
+                html: `
+                    <div class="marker-pin">
+                        <div class="flex items-center justify-center h-full w-full transform rotate-45">
+                            <span class="text-lg">${food.remaining_hours <= 24 ? '⚡' : '🍽️'}</span>
+                        </div>
+                    </div>
+                `,
+                iconSize: [40, 40],
+                iconAnchor: [20, 40],
+                popupAnchor: [0, -40],
+                tooltipAnchor: [0, -40]
+            });
+
+            const marker = L.marker([food.latitude, food.longitude], { icon: markerIcon })
+                .bindPopup(createPopupContent(food))
+                .bindTooltip(`${food.name} - ${food.remaining_hours <= 24 
+                    ? `Expires in ${Math.round(food.remaining_hours)} hours` 
+                    : `Expires in ${Math.round(food.remaining_hours/24)} days`}`, 
+                    {
+                        permanent: false,
+                        direction: 'top'
+                    });
+
+            return marker;
+        }
+
+        function createPopupContent(food) {
+            return `
+                <div class="text-center p-2">
+                    <h3 class="font-bold text-lg">${food.name}</h3>
+                    <p class="text-sm mb-2">${food.location}</p>
+                    <p class="text-xs mb-2 ${food.remaining_hours <= 24 ? 'text-red-300' : ''}">
+                        ${food.remaining_hours <= 24 
+                            ? `Expires in ${Math.round(food.remaining_hours)} hours`
+                            : `Expires in ${Math.round(food.remaining_hours/24)} days`}
+                    </p>
+                    <a href="/food/foods/${food.id}/details" 
+                       class="inline-block bg-green-500 text-white px-4 py-1 rounded-full text-sm hover:bg-green-600 transition-colors">
+                        View Details
+                    </a>
+                </div>
+            `;
+        }
+
+        function getUserLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    const { latitude, longitude } = position.coords;
+                    
+                    if (currentLocationMarker) {
+                        map.removeLayer(currentLocationMarker);
+                    }
+                    
+                    currentLocationMarker = L.marker([latitude, longitude], {
+                        icon: L.divIcon({
+                            className: 'bg-blue-500 rounded-full w-4 h-4 border-2 border-white shadow-lg',
+                            iconSize: [16, 16]
+                        })
+                    }).addTo(map);
+                    
+                    map.setView([latitude, longitude], 13);
+                });
+            }
+        }
+
+        function filterMarkers(filter) {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                if (btn.dataset.filter === filter) {
+                    btn.classList.add('bg-green-500', 'text-white');
+                    btn.classList.remove('text-gray-600', 'bg-gray-100');
+                } else {
+                    btn.classList.remove('bg-green-500', 'text-white');
+                    btn.classList.add('text-gray-600', 'bg-gray-100');
+                }
+            });
+
+            markers.clearLayers();
+
+            foods.forEach(food => {
+                if (food.latitude && food.longitude) {
+                    if (filter === 'all' || 
+                        (filter === 'expiring-soon' && food.remaining_hours <= 24)) {
+                        markers.addLayer(createMarker(food));
+                    }
+                }
+            });
+        }
+
+        initMap();
+        filterMarkers('all');
+    </script>
+</body>
+</html>

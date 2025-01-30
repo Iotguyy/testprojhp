@@ -277,6 +277,9 @@ async def add_food_form(request: Request, db: Session = Depends(get_db)):
 #     return new_food
 
 from fastapi import status
+from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse
+
 
 @router.post("/foods/")
 async def create_food(
@@ -359,7 +362,16 @@ async def create_food(
     db.add(new_food)
     db.commit()
     db.refresh(new_food)
-    return new_food
+    # return new_food
+    # return RedirectResponse(
+    #     url="/food/food-page",
+    #     status_code=301  # Permanent redirect
+    # )
+
+    return JSONResponse(
+        content={"message": "Food created successfully", "redirect_url": "/food/food-page"},
+        status_code=status.HTTP_201_CREATED
+    )
 
 
 # Get all food items
@@ -388,20 +400,156 @@ def get_foods(db: Session = Depends(get_db)):
 
     return [schemas.Food.from_orm_with_relationships(food) for food in foods]
 
+# @router.get("/food-page")
+# async def food_page(request: Request, db: Session = Depends(get_db)):
+#     current_time = datetime.now()
+    
+#     # Get all categories for filter
+#     categories = db.query(models.FoodCategory).all()
+    
+#     # Get all active foods
+#     foods = (
+#         db.query(models.Food)
+#         .filter(models.Food.expiration_time > current_time)
+#         .order_by(models.Food.current_time.desc())  # Latest first
+#         .all()
+#     )
+    
+#     return templates.TemplateResponse(
+#         "food_items.html", 
+#         {
+#             "request": request,
+#             "foods": foods,
+#             "categories": categories,
+#             "current_time": current_time
+#         }
+#     )
+
+
+
+# from typing import Optional
+# from datetime import datetime, timedelta
+# from sqlalchemy import and_
+
+# @router.get("/food-page")
+# async def food_page(
+#     request: Request,
+#     category: Optional[int] = None,
+#     expiration: Optional[int] = None,
+#     location: Optional[str] = None,
+#     status: Optional[str] = None,
+#     db: Session = Depends(get_db)
+# ):
+#     current_time = datetime.now()
+    
+#     # Base query
+#     query = db.query(models.Food).filter(models.Food.expiration_time > current_time)
+    
+#     # Apply filters
+#     if category:
+#         query = query.filter(models.Food.category_id == category)
+    
+#     if expiration:
+#         # Convert hours to timedelta
+#         expiry_threshold = current_time + timedelta(hours=int(expiration))
+#         query = query.filter(models.Food.expiration_time <= expiry_threshold)
+    
+#     if location:
+#         # Case-insensitive location search
+#         query = query.filter(models.Food.location.ilike(f"%{location}%"))
+    
+#     if status:
+#         query = query.filter(models.Food.status == status)
+    
+#     # Get all categories for filter
+#     categories = db.query(models.FoodCategory).all()
+    
+#     # Execute query with ordering
+#     foods = query.order_by(models.Food.current_time.desc()).all()
+    
+#     # Get current filter values for form
+#     current_filters = {
+#         "category": category,
+#         "expiration": expiration,
+#         "location": location,
+#         "status": status
+#     }
+    
+#     return templates.TemplateResponse(
+#         "food_items.html", 
+#         {
+#             "request": request,
+#             "foods": foods,
+#             "categories": categories,
+#             "current_time": current_time,
+#             "current_filters": current_filters,
+#             "FoodStatus": FoodStatus
+#         }
+#     )
+
+
+
+from typing import Optional
+from datetime import datetime, timedelta
+from sqlalchemy import and_
+
 @router.get("/food-page")
-async def food_page(request: Request, db: Session = Depends(get_db)):
+async def food_page(
+    request: Request,
+    category: Optional[str] = None,  # Will come as string from URL
+    expiration: Optional[str] = None,  # Will come as string from URL
+    location: Optional[str] = None,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
     current_time = datetime.now()
+    
+    # Base query
+    query = db.query(models.Food).filter(models.Food.expiration_time > current_time)
+    
+    # Apply category filter
+    if category and category.isdigit():
+        query = query.filter(models.Food.category_id == int(category))
+    
+    # Apply expiration filter
+    if expiration and expiration.isdigit():
+        hours = int(expiration)
+        # Calculate the cutoff time
+        cutoff_time = current_time + timedelta(hours=hours)
+        # Get foods that expire before the cutoff time
+        query = query.filter(
+            and_(
+                models.Food.expiration_time > current_time,  # Still not expired
+                models.Food.expiration_time <= cutoff_time   # But expires within the window
+            )
+        )
+    
+    # Apply location filter
+    if location:
+        # Case-insensitive location search
+        query = query.filter(models.Food.location.ilike(f"%{location}%"))
+    
+    # Apply status filter
+    if status:
+        query = query.filter(models.Food.status == status)
     
     # Get all categories for filter
     categories = db.query(models.FoodCategory).all()
     
-    # Get all active foods
-    foods = (
-        db.query(models.Food)
-        .filter(models.Food.expiration_time > current_time)
-        .order_by(models.Food.current_time.desc())  # Latest first
-        .all()
-    )
+    # Execute query with ordering
+    foods = query.order_by(models.Food.current_time.desc()).all()
+    
+    # Get current filter values for form
+    current_filters = {
+        "category": int(category) if category and category.isdigit() else None,
+        "expiration": int(expiration) if expiration and expiration.isdigit() else None,
+        "location": location,
+        "status": status
+    }
+
+    # Calculate remaining time for each food item
+    for food in foods:
+        food.remaining_time = food.expiration_time - current_time
     
     return templates.TemplateResponse(
         "food_items.html", 
@@ -409,9 +557,229 @@ async def food_page(request: Request, db: Session = Depends(get_db)):
             "request": request,
             "foods": foods,
             "categories": categories,
-            "current_time": current_time
+            "current_time": current_time,
+            "current_filters": current_filters,
+            "FoodStatus": FoodStatus
         }
     )
+
+
+
+from sqlalchemy.orm import Session, joinedload
+
+# @router.get("/map")
+# async def food_map(
+#     request: Request,
+#     db: Session = Depends(get_db)
+# ):
+#     current_time = datetime.now()
+    
+#     # Get all active foods with location data
+#     foods = (
+#         db.query(models.Food)
+#         .filter(
+#             and_(
+#                 models.Food.expiration_time > current_time,
+#                 models.Food.latitude.isnot(None),
+#                 models.Food.longitude.isnot(None)
+#             )
+#         )
+#         .options(
+#             joinedload(models.Food.category),
+#             joinedload(models.Food.unit)
+#         )
+#         .order_by(models.Food.current_time.desc())
+#         .all()
+#     )
+    
+#     # Convert foods to dict for JSON serialization
+#     foods_data = []
+#     for food in foods:
+#         foods_data.append({
+#             "id": food.id,
+#             "name": food.name,
+#             "description": food.description,
+#             "image_url": food.image_url,
+#             "quantity": food.quantity,
+#             "location": food.location,
+#             "latitude": float(food.latitude),
+#             "longitude": float(food.longitude),
+#             "status": food.status,
+#             "category": {"id": food.category.id, "name": food.category.name},
+#             "unit": {"id": food.unit.id, "name": food.unit.name}
+#         })
+
+#     return templates.TemplateResponse(
+#         "food_map.html",
+#         {
+#             "request": request,
+#             "foods": foods_data
+#         }
+#     )
+
+
+
+@router.get("/map")
+async def food_map(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    current_time = datetime.now()
+    user = await get_current_user(request, db)
+    
+    # Get all active foods with location data
+    foods = (
+        db.query(models.Food)
+        .filter(
+            and_(
+                models.Food.expiration_time > current_time,
+                models.Food.latitude.isnot(None),
+                models.Food.longitude.isnot(None)
+            )
+        )
+        .options(
+            joinedload(models.Food.category),
+            joinedload(models.Food.unit),
+            joinedload(models.Food.owner)
+        )
+        .order_by(models.Food.current_time.desc())
+        .all()
+    )
+    
+    # Convert foods to dict for JSON serialization
+    foods_data = []
+    for food in foods:
+        remaining_time = food.expiration_time - current_time
+        foods_data.append({
+            "id": food.id,
+            "name": food.name,
+            "description": food.description,
+            "image_url": food.image_url,
+            "quantity": food.quantity,
+            "location": food.location,
+            "latitude": float(food.latitude),
+            "longitude": float(food.longitude),
+            "status": food.status,
+            "contact": food.contact,
+            "owner_name": food.owner.username,
+            "category": {"id": food.category.id, "name": food.category.name},
+            "unit": {"id": food.unit.id, "name": food.unit.name},
+            "expiration_time": food.expiration_time.isoformat(),
+            "remaining_hours": remaining_time.total_seconds() / 3600
+        })
+
+    return templates.TemplateResponse(
+        "food_map.html",
+        {
+            "request": request,
+            "foods": foods_data,
+            "user": user
+        }
+    )
+
+
+from typing import Dict, Any
+
+@router.get("/api/foods/{food_id}")
+async def get_food_details(
+    food_id: int,
+    request: Request,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    # Get current time
+    current_time = datetime.now()
+    
+    # Get food with all related data
+    food = (
+        db.query(models.Food)
+        .options(
+            joinedload(models.Food.category),
+            joinedload(models.Food.unit),
+            joinedload(models.Food.owner)
+        )
+        .filter(models.Food.id == food_id)
+        .first()
+    )
+    
+    if not food:
+        raise HTTPException(status_code=404, detail="Food not found")
+    
+    # Calculate remaining time
+    remaining_time = food.expiration_time - current_time
+    remaining_hours = remaining_time.total_seconds() / 3600
+    
+    # Format expiration time
+    expiry_text = ""
+    if remaining_hours <= 1:
+        expiry_text = f"Expires in {int(remaining_time.total_seconds() / 60)} minutes"
+    elif remaining_hours <= 24:
+        expiry_text = f"Expires in {int(remaining_hours)} hours"
+    else:
+        expiry_text = f"Expires in {int(remaining_hours / 24)} days"
+    
+    return {
+        "id": food.id,
+        "name": food.name,
+        "description": food.description,
+        "image_url": food.image_url,
+        "quantity": food.quantity,
+        "location": food.location,
+        "latitude": float(food.latitude) if food.latitude else None,
+        "longitude": float(food.longitude) if food.longitude else None,
+        "contact": food.contact,
+        "status": food.status,
+        "expiration_time": food.expiration_time.isoformat(),
+        "remaining_hours": remaining_hours,
+        "expiry_text": expiry_text,
+        "category": {
+            "id": food.category.id,
+            "name": food.category.name
+        },
+        "unit": {
+            "id": food.unit.id,
+            "name": food.unit.name
+        },
+        "owner": {
+            "id": food.owner.id,
+            "username": food.owner.username
+        }
+    }
+
+
+# Add API endpoint for food details
+# @router.get("/api/foods/{food_id}")
+# async def get_food_details(
+#     food_id: int,
+#     db: Session = Depends(get_db)
+# ):
+#     food = (
+#         db.query(models.Food)
+#         .filter(models.Food.id == food_id)
+#         .options(
+#             joinedload(models.Food.category),
+#             joinedload(models.Food.unit)
+#         )
+#         .first()
+#     )
+    
+#     if not food:
+#         raise HTTPException(status_code=404, detail="Food not found")
+    
+#     return {
+#         "id": food.id,
+#         "name": food.name,
+#         "description": food.description,
+#         "image_url": food.image_url,
+#         "quantity": food.quantity,
+#         "location": food.location,
+#         "latitude": float(food.latitude),
+#         "longitude": float(food.longitude),
+#         "contact": food.contact,
+#         "status": food.status,
+#         "expiration_time": food.expiration_time,
+#         "category": {"id": food.category.id, "name": food.category.name},
+#         "unit": {"id": food.unit.id, "name": food.unit.name}
+#     }
 
 
 

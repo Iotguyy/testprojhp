@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages - Food Reservation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <!-- Header -->
+            <div class="bg-green-600 text-white px-6 py-4">
+                <div class="flex justify-between items-center">
+                    <h1 class="text-xl font-semibold">
+                        Messages for {{ reservation.food.name }}
+                    </h1>
+                    <a href="/reservation/my-reservations" class="text-white hover:text-gray-200">
+                        Back to Reservations
+                    </a>
+                </div>
+            </div>
+
+            <!-- Messages Container -->
+            <div class="h-96 overflow-y-auto p-6" id="messages-container">
+                {% for message in messages %}
+                <div class="mb-4 {% if message.sender_id == current_user.id %}text-right{% endif %}">
+                    <div class="inline-block max-w-lg rounded-lg px-4 py-2 
+                        {% if message.sender_id == current_user.id %}
+                            bg-green-500 text-white
+                        {% else %}
+                            bg-gray-200 text-gray-800
+                        {% endif %}">
+                        <p>{{ message.content }}</p>
+                        <p class="text-xs mt-1 opacity-75">
+                            {{ message.created_at.strftime('%H:%M') }}
+                            {% if message.read and message.sender_id == current_user.id %}
+                            <span class="ml-2">✓</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Message Input -->
+            <div class="border-t px-6 py-4">
+                <form id="message-form" class="flex space-x-4">
+                    <input type="text" 
+                           id="message-input"
+                           class="flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:border-green-500"
+                           placeholder="Type your message...">
+                    <button type="submit"
+                            class="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                        Send
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const messagesContainer = document.getElementById('messages-container');
+        const messageForm = document.getElementById('message-form');
+        const messageInput = document.getElementById('message-input');
+
+        // Scroll to bottom of messages
+        function scrollToBottom() {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        scrollToBottom();
+
+        // Handle message submission
+        messageForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const content = messageInput.value.trim();
+            if (!content) return;
+
+            try {
+                const response = await fetch(`/reservation/reservations/{{ reservation.id }}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ content: content }),
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    messageInput.value = '';
+                    // Reload messages
+                    window.location.reload();
+                } else {
+                    const data = await response.json();
+                    alert(data.detail || 'Failed to send message');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while sending the message');
+            }
+        });
+
+        // Poll for new messages every 5 seconds
+        setInterval(() => {
+            window.location.reload();
+        }, 15000);
+    </script>
+</body>
+</html>

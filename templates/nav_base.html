@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Food Sharing{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Add dropdown functionality -->
+    <script src="https://cdn.jsdelivr.net/gh/alpinejs/alpine@v2.x.x/dist/alpine.min.js" defer></script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-md">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center h-16">
+                <!-- Left side - Logo and primary links -->
+                <div class="flex items-center space-x-8">
+                    <!-- Logo -->
+                    <a href="/" class="flex items-center">
+                        <span class="text-2xl font-bold text-green-600">Food Sharing</span>
+                    </a>
+
+                    <!-- Primary Navigation -->
+                    <div class="hidden md:flex items-center space-x-4">
+                        <a href="/food/map" class="text-gray-600 hover:text-green-600 px-3 py-2 rounded-md">
+                            Map View
+                        </a>
+                        <a href="/food/food-page" class="text-gray-600 hover:text-green-600 px-3 py-2 rounded-md">
+                            Browse Foods
+                        </a>
+
+                        <a href="/profile" class="text-gray-600 hover:text-green-600 px-3 py-2 rounded-md">
+                            Profile
+                        </a>
+
+
+                        <a href="/food/add-food" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                            Share Food
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Right side - User menu and notifications -->
+                <div class="flex items-center space-x-4">
+                    <!-- Notifications -->
+                    <div class="relative">
+                        <a href="/notifications" class="text-gray-600 hover:text-green-600 p-2">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                            </svg>
+                            {% if notification_count and notification_count > 0 %}
+                                <span class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
+                                    {{ notification_count }}
+                                </span>
+                            {% endif %}
+                        </a>
+                    </div>
+
+                    <!-- User Menu Dropdown -->
+                    <div x-data="{ open: false }" class="relative">
+                        <button @click="open = !open" class="flex items-center space-x-2 text-gray-600 hover:text-green-600 focus:outline-none">
+                            <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white">
+                                {{ user.username[0].upper() if user else 'G' }}
+                            </div>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+
+                        <!-- Dropdown Menu -->
+                        <div x-show="open" 
+                             @click.away="open = false"
+                             class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+                            {% if user %}
+                                <a href="/profile" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    My Profile
+                                </a>
+                                <a href="/food/my-foods" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    My Foods
+                                </a>
+                                <a href="/reservation/my-reservations" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    My Reservations
+                                </a>
+                                <div class="border-t border-gray-100"></div>
+                                <a href="/auth/logout" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
+                                    Logout
+                                </a>
+                            {% else %}
+                                <a href="/auth/login-page" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    Login
+                                </a>
+                                <a href="/auth/register-page" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    Register
+                                </a>
+
+                                <a href="/auth/logout" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    Logout
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mobile menu button -->
+                <div class="md:hidden">
+                    <button x-data="{ open: false }" 
+                            @click="open = !open"
+                            class="text-gray-600 hover:text-green-600 focus:outline-none">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mobile Menu -->
+            <div x-data="{ open: false }" 
+                 x-show="open" 
+                 class="md:hidden">
+                <div class="px-2 pt-2 pb-3 space-y-1">
+                    <a href="/food/map" class="block px-3 py-2 text-base font-medium text-gray-600 hover:text-green-600 hover:bg-gray-50 rounded-md">
+                        Map View
+                    </a>
+                    <a href="/food/food-page" class="block px-3 py-2 text-base font-medium text-gray-600 hover:text-green-600 hover:bg-gray-50 rounded-md">
+                        Browse Foods
+                    </a>
+                    <a href="/food/add-food" class="block px-3 py-2 text-base font-medium text-white bg-green-500 hover:bg-green-600 rounded-md">
+                        Share Food
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Content -->
+    <main class="container mx-auto px-4 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white shadow-md mt-auto">
+        <div class="container mx-auto px-4 py-6">
+            <div class="text-center text-gray-600">
+                Community Food Sharing. 
+            </div>
+        </div>
+    </footer>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

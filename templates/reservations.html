@@ -107,27 +107,55 @@
                                     {% endif %}
                                     
                                     {% if reservation.status == 'confirmed' %}
-                                        <span class="text-green-600">Pickup Confirmed</span>
+                                        {% if reservation.donor_id == user.id %}
+                                        <button onclick="markNoShow({{ reservation.id }})"
+                                                class="text-yellow-600 hover:text-yellow-900 text-left">
+                                            Mark as No-Show
+                                        </button>
+                                        {% endif %}
                                     {% endif %}
-
-                                    {% if reservation.status == 'cancelled' %}
-                                        <span class="text-red-600">Cancelled</span>
-                                    {% endif %}
-
-                                    <!-- Contact Information -->
-                                    {% if reservation.status == 'confirmed' or reservation.status == 'pending' %}
+                            
+                                    <!-- {% if reservation.status == 'confirmed' or reservation.status == 'pending' %}
                                         {% if reservation.donor_id == user.id %}
                                         <a href="tel:{{ reservation.receiver.phone }}" 
-                                           class="text-blue-600 hover:text-blue-900 text-left">
+                                           class="text-blue-600 hover:text-blue-900 text-left flex items-center">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                                    d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+                                            </svg>
                                             Contact Receiver
                                         </a>
                                         {% else %}
                                         <a href="tel:{{ reservation.donor.phone }}" 
-                                           class="text-blue-600 hover:text-blue-900 text-left">
+                                           class="text-blue-600 hover:text-blue-900 text-left flex items-center">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                                    d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+                                            </svg>
                                             Contact Donor
                                         </a>
                                         {% endif %}
-                                    {% endif %}
+                                    {% endif %} -->
+
+
+                                    <!-- Add this to your actions column in reservations.html -->
+{% if reservation.status in ['pending', 'confirmed'] %}
+<button onclick="window.location.href='/reservation/reservations/{{ reservation.id }}/messages'"
+        class="text-blue-600 hover:text-blue-900 text-left flex items-center">
+    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+    </svg>
+    Messages
+    {% if reservation.unread_messages_count > 0 %}
+    <span class="ml-1 bg-red-500 text-white text-xs rounded-full px-2 py-1">
+        {{ reservation.unread_messages_count }}
+    </span>
+    {% endif %}
+</button>
+{% endif %}
+
+
                                 </div>
                             </td>
                         </tr>
@@ -149,50 +177,76 @@
 
     <script>
         async function confirmReservation(reservationId) {
-            if (!confirm('Are you sure you want to confirm this pickup?')) {
-                return;
-            }
+    if (!confirm('Are you sure you want to confirm this pickup? This will mark the food item as completed.')) {
+        return;
+    }
 
-            try {
-                const response = await fetch(`/reservation/reservations/${reservationId}/confirm`, {
-                    method: 'PUT',
-                    credentials: 'include'
-                });
-                
-                if (response.ok) {
-                    window.location.reload();
-                } else {
-                    const data = await response.json();
-                    alert(data.detail || 'Failed to confirm pickup');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('An error occurred');
-            }
+    try {
+        const response = await fetch(`/reservation/reservations/${reservationId}/confirm`, {
+            method: 'PUT',
+            credentials: 'include'
+        });
+        
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            const data = await response.json();
+            alert(data.detail || 'Failed to confirm pickup');
         }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred');
+    }
+}
 
-        async function cancelReservation(reservationId) {
-            if (!confirm('Are you sure you want to cancel this reservation?')) {
-                return;
-            }
+async function cancelReservation(reservationId) {
+    const reason = prompt('Please provide a reason for cancellation (optional):');
+    if (reason === null) return; // User clicked cancel
 
-            try {
-                const response = await fetch(`/reservation/reservations/${reservationId}/cancel`, {
-                    method: 'PUT',
-                    credentials: 'include'
-                });
-                
-                if (response.ok) {
-                    window.location.reload();
-                } else {
-                    const data = await response.json();
-                    alert(data.detail || 'Failed to cancel reservation');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('An error occurred');
-            }
+    try {
+        const response = await fetch(`/reservation/reservations/${reservationId}/cancel`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ reason: reason }),
+            credentials: 'include'
+        });
+        
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            const data = await response.json();
+            alert(data.detail || 'Failed to cancel reservation');
         }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred');
+    }
+}
+
+async function markNoShow(reservationId) {
+    if (!confirm('Are you sure you want to mark this reservation as no-show? This will make the food item available again.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/reservation/reservations/${reservationId}/no-show`, {
+            method: 'PUT',
+            credentials: 'include'
+        });
+        
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            const data = await response.json();
+            alert(data.detail || 'Failed to mark as no-show');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred');
+    }
+}
     </script>
 </body>
 </html>

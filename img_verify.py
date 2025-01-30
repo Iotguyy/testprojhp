@@ -8,9 +8,19 @@ from datetime import datetime
 from fastapi.responses import JSONResponse
 import json
 import ast
+import os
+import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Setup environment and OpenAI client
-token = ""
+
+
+
+token = os.getenv("token")
+print(token)
+
 endpoint = "https://models.inference.ai.azure.com"
 model_name = "gpt-4o"
 client = OpenAI(

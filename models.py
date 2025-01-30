@@ -57,7 +57,7 @@
 
 
 
-from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey,DateTime
+from sqlalchemy import Column, Integer, String, Float,Boolean, Text, ForeignKey,DateTime
 from sqlalchemy.orm import relationship, validates
 from db import Base
 from datetime import datetime
@@ -148,7 +148,37 @@ class Reservation(Base):
     reservation_time = Column(DateTime, default=datetime.now)  # Time when the reservation was made
     status = Column(String, default="pending")  # Status of the reservation (e.g., pending, confirmed)
 
+
+    cancelled_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    cancelled_at = Column(DateTime, nullable=True)
+
     # Relationships
     donor = relationship("User", foreign_keys=[donor_id])  # Link to User (donor)
     receiver = relationship("User", foreign_keys=[receiver_id])  # Link to User (receiver)
     food = relationship("Food")  # Link to Food model
+
+    cancelled_by = relationship("User", foreign_keys=[cancelled_by_id])
+
+    messages = relationship("Message", back_populates="reservation")
+
+    @property
+    def unread_messages_count(self):
+        return sum(1 for msg in self.messages if not msg.read and msg.receiver_id == self.receiver_id)
+
+class Message(Base):
+    __tablename__ = "messages"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    reservation_id = Column(Integer, ForeignKey("reservations.id"))
+    sender_id = Column(Integer, ForeignKey("users.id"))
+    receiver_id = Column(Integer, ForeignKey("users.id"))
+    content = Column(String)
+    created_at = Column(DateTime, default=datetime.now)
+    read = Column(Boolean, default=False)
+    
+    # Relationships
+    reservation = relationship("Reservation", back_populates="messages")
+    sender = relationship("User", foreign_keys=[sender_id], backref="sent_messages")
+    receiver = relationship("User", foreign_keys=[receiver_id], backref="received_messages")
+
+

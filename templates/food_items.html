@@ -1,182 +1,243 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Available Food Items</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
-    </style>
-</head>
-<body class="bg-gray-100 min-h-screen">
-    <nav class="bg-white shadow-md">
-        <div class="container mx-auto px-4 py-3">
-            <div class="flex justify-between items-center">
-                <h1 class="text-2xl font-bold text-green-600">Food Sharing</h1>
-                <a href="/food/add-food" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
-                    Add Food Item
-                </a>
-            </div>
-        </div>
-    </nav>
+{% extends "nav_base.html" %}
 
-    <div class="container mx-auto p-4">
-        <div class="flex gap-6">
-            <!-- Main content -->
-            <div class="flex-1 h-[calc(100vh-8rem)] overflow-y-auto custom-scrollbar">
-                {% if foods %}
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {% for food in foods %}
-                    <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-                    onclick="window.location.href='/food/foods/{{ food.id }}/details'">
-                        
-                        {% if food.image_url %}
-                        <img src="{{ food.image_url }}" alt="{{ food.name }}" class="w-full h-48 object-cover">
+{% block title %}Available Food Items{% endblock %}
+
+{% block extra_head %}
+<style>
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 3px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex gap-6">
+    <!-- Filter sidebar -->
+    <div class="w-80 bg-white p-6 rounded-lg shadow-lg h-fit sticky top-4">
+        <h2 class="text-xl font-semibold mb-4">Filters</h2>
+        
+        <!-- Active Filters -->
+        <div class="mb-6" id="activeFilters">
+            {% if current_filters.category or current_filters.expiration or current_filters.location or current_filters.status %}
+            <div class="text-sm text-gray-600 mb-2">Active Filters:</div>
+            <div class="flex flex-wrap gap-2">
+                {% if current_filters.category %}
+                    {% set category_name = categories|selectattr("id", "eq", current_filters.category)|first|attr("name") %}
+                    <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm">
+                        Category: {{ category_name }}
+                        <button onclick="removeFilter('category')" class="ml-1 text-green-600 hover:text-green-800">×</button>
+                    </span>
+                {% endif %}
+                
+                {% if current_filters.expiration %}
+                    <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm">
+                        Expiring within: 
+                        {% if current_filters.expiration < 24 %}
+                            {{ current_filters.expiration }} hours
+                        {% elif current_filters.expiration == 24 %}
+                            1 day
+                        {% elif current_filters.expiration == 168 %}
+                            1 week
                         {% else %}
-                        <div class="w-full h-48 bg-gray-200 flex items-center justify-center">
-                            <span class="text-gray-400">No Image</span>
-                        </div>
+                            {{ (current_filters.expiration / 24)|int }} days
                         {% endif %}
-                        
-                        <div class="p-4">
-                            <div class="flex justify-between items-start mb-2">
-                                <h3 class="text-lg font-semibold text-gray-800">{{ food.name }}</h3>
-                                <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                                    {{ food.category.name }}
-                                </span>
-                            </div>
-                            
-                            <p class="text-gray-600 text-sm mb-2">{{ food.description }}</p>
-                            
-                            <div class="flex justify-between items-center text-sm text-gray-500">
-                                <span>Quantity: {{ food.quantity }} {{ food.unit.name }}</span>
-                                <span>{{ food.location }}</span>
-                            </div>
-
-                            <div class="mt-2 text-sm">
-                                <span class="text-gray-500">Contact: {{ food.contact }}</span>
-                            </div>
-
-                            <div class="mt-3 flex justify-between items-center">
-                                <span class="text-sm {% if (food.expiration_time - current_time).days < 1 %}text-red-500{% else %}text-gray-500{% endif %}">
-                                    Expires: {{ food.expiration_time.strftime('%Y-%m-%d %H:%M') }}
-                                </span>
-                                {% if food.status == "active" %}
-                                <button onclick="reserveFood({{ food.id }})" 
-                                    class="bg-blue-500 text-white px-4 py-1 rounded hover:bg-blue-600 text-sm transition-colors">
-                                    Reserve
-                                </button>
-                                {% else %}
-                                <span class="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">
-                                    {{ food.status }}
-                                </span>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="text-center py-10">
-                    <p class="text-gray-500">No food items available</p>
-                </div>
+                        <button onclick="removeFilter('expiration')" class="ml-1 text-green-600 hover:text-green-800">×</button>
+                    </span>
+                {% endif %}
+                
+                {% if current_filters.location %}
+                    <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm">
+                        Location: {{ current_filters.location }}
+                        <button onclick="removeFilter('location')" class="ml-1 text-green-600 hover:text-green-800">×</button>
+                    </span>
+                {% endif %}
+                
+                {% if current_filters.status %}
+                    <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm">
+                        Status: {{ current_filters.status|title }}
+                        <button onclick="removeFilter('status')" class="ml-1 text-green-600 hover:text-green-800">×</button>
+                    </span>
                 {% endif %}
             </div>
-
-            <!-- Filter sidebar -->
-            <div class="w-80 bg-white p-6 rounded-lg shadow-lg h-fit sticky top-4">
-                <h2 class="text-xl font-semibold mb-4">Filters</h2>
-                
-                <form id="filterForm" method="get">
-                    <!-- Category filter -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                        <select name="category" class="w-full p-2 border rounded-md">
-                            <option value="">All Categories</option>
-                            {% for category in categories %}
-                            <option value="{{ category.id }}">{{ category.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <!-- Expiration filter -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Expiration</label>
-                        <select name="expiration" class="w-full p-2 border rounded-md">
-                            <option value="">Any Time</option>
-                            <option value="24">Within 24 hours</option>
-                            <option value="48">Within 2 days</option>
-                            <option value="168">Within 1 week</option>
-                        </select>
-                    </div>
-
-                    <!-- Location filter -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
-                        <input type="text" name="location" placeholder="Enter location" 
-                            class="w-full p-2 border rounded-md">
-                    </div>
-
-                    <!-- Status filter -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                        <select name="status" class="w-full p-2 border rounded-md">
-                            <option value="">All Status</option>
-                            <option value="active">Active</option>
-                            <option value="reserved">Reserved</option>
-                        </select>
-                    </div>
-
-                    <button type="submit" 
-                        class="w-full bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600 transition-colors">
-                        Apply Filters
-                    </button>
-                </form>
-            </div>
+            {% endif %}
         </div>
+        
+        <form id="filterForm" method="get" class="space-y-4">
+            <!-- Category filter -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                <select name="category" class="w-full p-2 border rounded-md">
+                    <option value="">All Categories</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}" 
+                        {% if current_filters.category == category.id %}selected{% endif %}>
+                        {{ category.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Expiration filter -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Show items expiring within</label>
+                <select name="expiration" class="w-full p-2 border rounded-md">
+                    <option value="">Any Time</option>
+                    <option value="6" {% if current_filters.expiration == 6 %}selected{% endif %}>6 hours</option>
+                    <option value="12" {% if current_filters.expiration == 12 %}selected{% endif %}>12 hours</option>
+                    <option value="24" {% if current_filters.expiration == 24 %}selected{% endif %}>24 hours</option>
+                    <option value="48" {% if current_filters.expiration == 48 %}selected{% endif %}>2 days</option>
+                    <option value="72" {% if current_filters.expiration == 72 %}selected{% endif %}>3 days</option>
+                    <option value="168" {% if current_filters.expiration == 168 %}selected{% endif %}>1 week</option>
+                </select>
+            </div>
+
+            <!-- Location filter -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                <input type="text" 
+                       name="location" 
+                       value="{{ current_filters.location or '' }}"
+                       placeholder="Enter location" 
+                       class="w-full p-2 border rounded-md">
+            </div>
+
+            <!-- Status filter -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select name="status" class="w-full p-2 border rounded-md">
+                    <option value="">All Status</option>
+                    {% for status in FoodStatus %}
+                    <option value="{{ status.value }}" 
+                        {% if current_filters.status == status.value %}selected{% endif %}>
+                        {{ status.value|title }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex space-x-2">
+                <button type="submit" 
+                    class="flex-1 bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600 transition-colors">
+                    Apply Filters
+                </button>
+                <button type="button" 
+                    onclick="clearFilters()"
+                    class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
+                    Clear
+                </button>
+            </div>
+        </form>
     </div>
 
-    <script>
-        async function reserveFood(foodId) {
-            try {
-                const response = await fetch(`/food/reserve/${foodId}`, {
-                    method: 'POST',
-                    credentials: 'include'
-                });
+    <!-- Main content -->
+    <div class="flex-1 h-[calc(100vh-8rem)] overflow-y-auto custom-scrollbar">
+        {% if foods %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for food in foods %}
+            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+                 onclick="window.location.href='/food/foods/{{ food.id }}/details'">
+                {% if food.image_url %}
+                <img src="{{ food.image_url }}" alt="{{ food.name }}" class="w-full h-48 object-cover">
+                {% else %}
+                <div class="w-full h-48 bg-gray-200 flex items-center justify-center">
+                    <span class="text-gray-400">No Image</span>
+                </div>
+                {% endif %}
                 
-                if (response.ok) {
-                    alert('Food item reserved successfully!');
-                    window.location.reload();
-                } else {
-                    const data = await response.json();
-                    alert(data.detail || 'Failed to reserve food item');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('An error occurred while reserving the food item');
+                <div class="p-4">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="text-lg font-semibold text-gray-800">{{ food.name }}</h3>
+                        <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                            {{ food.category.name }}
+                        </span>
+                    </div>
+                    
+                    <p class="text-gray-600 text-sm mb-2">{{ food.description }}</p>
+                    
+                    <div class="flex justify-between items-center text-sm text-gray-500">
+                        <span>Quantity: {{ food.quantity }} {{ food.unit.name }}</span>
+                        <span>{{ food.location }}</span>
+                    </div>
+
+                    <div class="mt-2 text-sm">
+                        <span class="text-gray-500">Contact: {{ food.contact }}</span>
+                    </div>
+
+                    <div class="mt-3 flex justify-between items-center">
+                        <span class="text-sm {% if food.remaining_time.total_seconds() < 86400 %}text-red-500{% else %}text-gray-500{% endif %}">
+                            {% if food.remaining_time.total_seconds() < 3600 %}
+                                Expires in {{ (food.remaining_time.total_seconds() / 60)|int }} minutes
+                            {% elif food.remaining_time.total_seconds() < 86400 %}
+                                Expires in {{ (food.remaining_time.total_seconds() / 3600)|int }} hours
+                            {% else %}
+                                Expires in {{ food.remaining_time.days }} days
+                            {% endif %}
+                        </span>
+                        <span class="px-2 py-1 {% if food.status == 'active' %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %} text-xs rounded-full">
+                            {{ food.status|title }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-10">
+            <p class="text-gray-500">No food items available</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Clear all filters
+    function clearFilters() {
+        window.location.href = '/food/food-page';
+    }
+
+    // Remove single filter
+    function removeFilter(filterName) {
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.delete(filterName);
+        window.location.href = `/food/food-page?${urlParams.toString()}`;
+    }
+
+    // Handle filter form submission
+    document.getElementById('filterForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const params = new URLSearchParams();
+
+        // Only add non-empty values to the URL
+        for (let [key, value] of formData.entries()) {
+            if (value) {
+                params.append(key, value);
             }
         }
 
-        // Handle filter form submission
-        document.getElementById('filterForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            const params = new URLSearchParams(formData);
-            window.location.href = `/food/food-page?${params.toString()}`;
-        });
-    </script>
-</body>
-</html>
+        window.location.href = `/food/food-page?${params.toString()}`;
+    });
+
+    // Debounced location search
+    let timeoutId;
+    const locationInput = document.querySelector('input[name="location"]');
+    locationInput.addEventListener('input', function() {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            document.getElementById('filterForm').submit();
+        }, 500);
+    });
+</script>
+{% endblock %}

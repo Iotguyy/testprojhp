@@ -103,10 +103,233 @@ async def get_my_reservations(
 
 
 
+@router.put("/reservations/{reservation_id}/confirm")
+async def confirm_reservation(
+    reservation_id: int,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    user = await get_current_user(request, db)
+    
+    # Get reservation with related food item
+    reservation = (
+        db.query(models.Reservation)
+        .filter(models.Reservation.id == reservation_id)
+        .options(joinedload(models.Reservation.food))
+        .first()
+    )
+    
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+
+    # Only donor can confirm
+    if reservation.donor_id != user.id:
+        raise HTTPException(status_code=403, detail="Only the donor can confirm a reservation")
+    
+    # Check if reservation is pending
+    if reservation.status != "pending":
+        raise HTTPException(status_code=400, detail="Only pending reservations can be confirmed")
+    
+    # Update reservation and food status
+    reservation.status = "confirmed"
+    reservation.food.status = FoodStatus.COMPLETED
+    
+    db.commit()
+    
+    return {"message": "Reservation confirmed successfully"}
+
+@router.put("/reservations/{reservation_id}/cancel")
+async def cancel_reservation(
+    reservation_id: int,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    user = await get_current_user(request, db)
+    
+    # Get reservation with related food item
+    reservation = (
+        db.query(models.Reservation)
+        .filter(models.Reservation.id == reservation_id)
+        .options(joinedload(models.Reservation.food))
+        .first()
+    )
+    
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+
+    # Check if user is either donor or receiver
+    if user.id not in [reservation.donor_id, reservation.receiver_id]:
+        raise HTTPException(status_code=403, detail="Not authorized to cancel this reservation")
+    
+    # Check if reservation can be cancelled
+    if reservation.status not in ["pending", "confirmed"]:
+        raise HTTPException(status_code=400, detail="This reservation cannot be cancelled")
+    
+    # Update reservation and food status
+    reservation.status = "cancelled"
+    reservation.food.status = FoodStatus.ACTIVE  # Make food available again
+    
+    # Add cancellation details
+    reservation.cancelled_by_id = user.id
+    reservation.cancelled_at = datetime.now()
+    
+    db.commit()
+    
+    return {"message": "Reservation cancelled successfully"}
+
+@router.put("/reservations/{reservation_id}/no-show")
+async def mark_no_show(
+    reservation_id: int,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    user = await get_current_user(request, db)
+    
+    reservation = (
+        db.query(models.Reservation)
+        .filter(models.Reservation.id == reservation_id)
+        .options(joinedload(models.Reservation.food))
+        .first()
+    )
+    
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+
+    # Only donor can mark no-show
+    if reservation.donor_id != user.id:
+        raise HTTPException(status_code=403, detail="Only the donor can mark no-show")
+    
+    if reservation.status != "confirmed":
+        raise HTTPException(status_code=400, detail="Only confirmed reservations can be marked as no-show")
+    
+    reservation.status = "no_show"
+    reservation.food.status = FoodStatus.ACTIVE
+    
+    db.commit()
+    
+    return {"message": "Reservation marked as no-show"}
 
 
 
 
+from fastapi import WebSocket
+from typing import List
+
+
+from pydantic import BaseModel
+
+class MessageCreate(BaseModel):
+    content: str
+
+@router.post("/reservations/{reservation_id}/messages")
+async def send_message(
+    reservation_id: int,
+    message: MessageCreate,  # Changed this
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    user = await get_current_user(request, db)
+    
+    reservation = db.query(models.Reservation).filter(models.Reservation.id == reservation_id).first()
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+    
+    # Verify user is part of the reservation
+    if user.id not in [reservation.donor_id, reservation.receiver_id]:
+        raise HTTPException(status_code=403, detail="Not authorized to send messages for this reservation")
+    
+    # Determine receiver
+    receiver_id = reservation.donor_id if user.id == reservation.receiver_id else reservation.receiver_id
+    
+    new_message = models.Message(
+        reservation_id=reservation_id,
+        sender_id=user.id,
+        receiver_id=receiver_id,
+        content=message.content  # Use the content from the request body
+    )
+    
+    db.add(new_message)
+    db.commit()
+    db.refresh(new_message)
+    
+    return {"message": "Message sent successfully"}
+
+
+# Message endpoints
+# @router.post("/reservations/{reservation_id}/messages")
+# async def send_message(
+#     reservation_id: int,
+#     content: str,
+#     request: Request,
+#     db: Session = Depends(get_db)
+# ):
+#     user = await get_current_user(request, db)
+    
+#     reservation = db.query(models.Reservation).filter(models.Reservation.id == reservation_id).first()
+#     if not reservation:
+#         raise HTTPException(status_code=404, detail="Reservation not found")
+    
+#     # Verify user is part of the reservation
+#     if user.id not in [reservation.donor_id, reservation.receiver_id]:
+#         raise HTTPException(status_code=403, detail="Not authorized to send messages for this reservation")
+    
+#     # Determine receiver
+#     receiver_id = reservation.donor_id if user.id == reservation.receiver_id else reservation.receiver_id
+    
+#     message = models.Message(
+#         reservation_id=reservation_id,
+#         sender_id=user.id,
+#         receiver_id=receiver_id,
+#         content=content
+#     )
+    
+#     db.add(message)
+#     db.commit()
+#     db.refresh(message)
+    
+#     return {"message": "Message sent successfully"}
+
+@router.get("/reservations/{reservation_id}/messages")
+async def get_messages(
+    reservation_id: int,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    user = await get_current_user(request, db)
+    
+    reservation = db.query(models.Reservation).filter(models.Reservation.id == reservation_id).first()
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+    
+    if user.id not in [reservation.donor_id, reservation.receiver_id]:
+        raise HTTPException(status_code=403, detail="Not authorized to view these messages")
+    
+    messages = (
+        db.query(models.Message)
+        .filter(models.Message.reservation_id == reservation_id)
+        .order_by(models.Message.created_at.asc())
+        .options(joinedload(models.Message.sender))
+        .all()
+    )
+    
+    # Mark unread messages as read
+    unread_messages = [
+        msg for msg in messages 
+        if msg.receiver_id == user.id and not msg.read
+    ]
+    for msg in unread_messages:
+        msg.read = True
+    db.commit()
+    
+    return templates.TemplateResponse(
+        "messages.html",
+        {
+            "request": request,
+            "messages": messages,
+            "reservation": reservation,
+            "current_user": user
+        }
+    )
 
 
 
